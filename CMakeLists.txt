@@ -17,17 +17,24 @@ FetchContent_Declare(doctest
   GIT_TAG v2.4.11)
 FetchContent_MakeAvailable(doctest)
 
+FetchContent_Declare(tomlplusplus
+  GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+  GIT_TAG v3.4.0)
+FetchContent_MakeAvailable(tomlplusplus)
+
 # Library of all non-main sources (sources appended by later tasks).
 add_library(runner_lib STATIC
-  src/placeholder.cpp
+  src/config.cpp
 )
 target_include_directories(runner_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(runner_lib PUBLIC tomlplusplus::tomlplusplus)
 set_target_properties(runner_lib PROPERTIES LINKER_LANGUAGE CXX)
 
 # Test executable.
 add_executable(runner_tests
   tests/test_main.cpp
   tests/test_smoke.cpp
+  tests/test_config_parse.cpp
 )
 target_link_libraries(runner_tests PRIVATE runner_lib doctest::doctest)
 
