@@ -35,6 +35,7 @@ add_executable(runner_tests
   tests/test_main.cpp
   tests/test_smoke.cpp
   tests/test_config_parse.cpp
+  tests/test_config_load.cpp
 )
 target_link_libraries(runner_tests PRIVATE runner_lib doctest::doctest)
 
