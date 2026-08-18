@@ -45,10 +45,16 @@ Installs the `runner` binary, the `runner.1` man page, and
 A ready-to-use xbps-src template lives at [`packaging/void/template`](packaging/void/template).
 To build and install it locally:
 
+Setup void-packages if you have not already:
+
 ```sh
 git clone --depth 1 https://github.com/void-linux/void-packages.git
 cd void-packages
 ./xbps-src binary-bootstrap
+```
+Then copy the template from the repo, build and install:
+
+```sh
 mkdir -p srcpkgs/runner
 cp /path/to/runner/packaging/void/template srcpkgs/runner/template
 ./xbps-src pkg runner
