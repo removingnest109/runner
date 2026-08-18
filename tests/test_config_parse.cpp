@@ -65,3 +65,54 @@ cmd = "b"
     CHECK(r.actions[0].label == "A");
     CHECK(r.actions[1].label == "B");
 }
+
+TEST_CASE("parse_config reads an inline env table into Action.env") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "E"
+cmd = "true"
+env = { FOO = "bar", BAZ = "qux" }
+)");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions.size() == 1);
+    REQUIRE(r.actions[0].env.size() == 2);
+    bool foo = false, baz = false;   // toml++ table order is not relied upon
+    for (const auto& [k, v] : r.actions[0].env) {
+        if (k == "FOO" && v == "bar") foo = true;
+        if (k == "BAZ" && v == "qux") baz = true;
+    }
+    CHECK(foo);
+    CHECK(baz);
+}
+
+TEST_CASE("parse_config accepts the [action.env] sub-table form") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "E"
+cmd = "true"
+[action.env]
+TARGET = "prod"
+)");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions.size() == 1);
+    REQUIRE(r.actions[0].env.size() == 1);
+    CHECK(r.actions[0].env[0].first == "TARGET");
+    CHECK(r.actions[0].env[0].second == "prod");
+}
+
+TEST_CASE("parse_config leaves env empty when unset") {
+    ParseResult r = parse_config("[[action]]\nlabel=\"E\"\ncmd=\"true\"\n");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions.size() == 1);
+    CHECK(r.actions[0].env.empty());
+}
+
+TEST_CASE("parse_config reports a non-string env value") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "E"
+cmd = "true"
+env = { PORT = 8080 }
+)");
+    CHECK_FALSE(r.errors.empty());
+}

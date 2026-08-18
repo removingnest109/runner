@@ -38,6 +38,16 @@ ParseResult parse_config(const std::string& toml_content) {
         a.desc  = (*t)["desc"].value_or(std::string{});
         a.cwd   = (*t)["cwd"].value_or(std::string{});
         a.group = (*t)["group"].value_or(std::string{});
+        if (auto envtbl = (*t)["env"].as_table()) {
+            for (auto&& [k, v] : *envtbl) {
+                if (auto s = v.value<std::string>()) {
+                    a.env.emplace_back(std::string(k.str()), *s);
+                } else {
+                    r.errors.push_back("action '" + a.label + "': env var '" +
+                                       std::string(k.str()) + "' must be a string");
+                }
+            }
+        }
         r.actions.push_back(std::move(a));
     }
     return r;
