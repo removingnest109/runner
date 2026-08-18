@@ -7,7 +7,7 @@ TEST_CASE("plain text without escapes becomes one span per line") {
     REQUIRE(p.lines().size() == 2);
     REQUIRE(p.lines()[0].size() == 1);
     CHECK(p.lines()[0][0].text == "hello");
-    CHECK(p.lines()[0][0].fg == -1);
+    CHECK(p.lines()[0][0].fg == Color{});
     CHECK(p.lines()[1][0].text == "world");
 }
 
@@ -26,9 +26,9 @@ TEST_CASE("SGR sets foreground color for following text") {
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 2);
     CHECK(line[0].text == "red");
-    CHECK(line[0].fg == 1);            // 31 -> index 1
+    CHECK(line[0].fg == Color::palette16(1));   // 31 -> index 1
     CHECK(line[1].text == "normal");
-    CHECK(line[1].fg == -1);           // reset
+    CHECK(line[1].fg == Color{});               // reset
 }
 
 TEST_CASE("bold flag is tracked and cleared") {
@@ -43,15 +43,15 @@ TEST_CASE("bold flag is tracked and cleared") {
 TEST_CASE("bright foreground colors map to indices 8..15") {
     AnsiParser p;
     p.feed("\x1b[92mX\n");   // 92 -> 8 + (92-90) = 10
-    CHECK(p.lines()[0][0].fg == 10);
+    CHECK(p.lines()[0][0].fg == Color::palette16(10));
 }
 
 TEST_CASE("background color is tracked separately") {
     AnsiParser p;
     p.feed("\x1b[44mB\x1b[49mn\n");  // 44 -> bg 4 ; 49 -> reset bg
     const StyledLine& line = p.lines()[0];
-    CHECK(line[0].bg == 4);
-    CHECK(line[1].bg == -1);
+    CHECK(line[0].bg == Color::palette16(4));
+    CHECK(line[1].bg == Color{});
 }
 
 TEST_CASE("an escape split across two feeds is handled") {
@@ -61,7 +61,7 @@ TEST_CASE("an escape split across two feeds is handled") {
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
     CHECK(line[0].text == "red");
-    CHECK(line[0].fg == 1);
+    CHECK(line[0].fg == Color::palette16(1));
 }
 
 TEST_CASE("carriage returns are stripped") {
@@ -92,9 +92,9 @@ TEST_CASE("bare CSI m resets styles") {
     p.feed("\x1b[31mred\x1b[mplain\n");
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 2);
-    CHECK(line[0].fg == 1);
+    CHECK(line[0].fg == Color::palette16(1));
     CHECK(line[1].text == "plain");
-    CHECK(line[1].fg == -1);
+    CHECK(line[1].fg == Color{});
 }
 
 TEST_CASE("empty SGR parameter is treated as 0 (reset)") {
@@ -102,7 +102,7 @@ TEST_CASE("empty SGR parameter is treated as 0 (reset)") {
     p.feed("\x1b[1m\x1b[;31mX\n");   // ";31" -> [0,31]: reset clears bold, then red
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
-    CHECK(line[0].fg == 1);
+    CHECK(line[0].fg == Color::palette16(1));
     CHECK(line[0].bold == false);
 }
 
@@ -115,7 +115,7 @@ TEST_CASE("malformed SGR parameters do not crash and text is preserved") {
     // \x1b[X is a consumed unsupported CSI (m becomes literal); the oversized
     // numeric param is ignored (no crash, style preserved), never applied.
     CHECK(all == "redmstillmore");
-    CHECK(p.lines()[0].back().fg == 1);   // oversized param ignored, red preserved (not reset)
+    CHECK(p.lines()[0].back().fg == Color::palette16(1));  // oversized param ignored, red preserved
 }
 
 TEST_CASE("256-color foreground is consumed and ignored") {
@@ -124,7 +124,7 @@ TEST_CASE("256-color foreground is consumed and ignored") {
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
     CHECK(line[0].text == "X");
-    CHECK(line[0].fg == -1);
+    CHECK(line[0].fg == Color{});
 }
 
 TEST_CASE("truecolor foreground is consumed and ignored") {
@@ -133,8 +133,8 @@ TEST_CASE("truecolor foreground is consumed and ignored") {
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
     CHECK(line[0].text == "Y");
-    CHECK(line[0].fg == -1);
-    CHECK(line[0].bg == -1);
+    CHECK(line[0].fg == Color{});
+    CHECK(line[0].bg == Color{});
 }
 
 TEST_CASE("256-color background is consumed and ignored") {
@@ -142,7 +142,7 @@ TEST_CASE("256-color background is consumed and ignored") {
     p.feed("\x1b[48;5;40mZ\n");
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
-    CHECK(line[0].bg == -1);
+    CHECK(line[0].bg == Color{});
 }
 
 TEST_CASE("AnsiParser caps retained scrollback to max_lines") {
@@ -159,8 +159,8 @@ TEST_CASE("a style code after a consumed 256-color payload still applies") {
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
     CHECK(line[0].text == "X");
-    CHECK(line[0].fg == -1);       // 256-color did not leak
-    CHECK(line[0].bold == true);   // the code after the payload applied
+    CHECK(line[0].fg == Color{});   // 256-color did not leak (this task)
+    CHECK(line[0].bold == true);    // the code after the payload applied
 }
 
 TEST_CASE("unknown extended color mode is consumed without leaking") {
@@ -169,5 +169,5 @@ TEST_CASE("unknown extended color mode is consumed without leaking") {
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
     CHECK(line[0].text == "X");
-    CHECK(line[0].fg == -1);
+    CHECK(line[0].fg == Color{});
 }

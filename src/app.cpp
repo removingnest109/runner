@@ -34,23 +34,34 @@ private:
     bool valid_ = false;
 };
 
-// Map a 16-color index to an FTXUI Color (0..15 -> palette; -1 handled by caller).
-Color palette16(int idx) {
-    static const Color table[16] = {
-        Color::Black,   Color::Red,     Color::Green,   Color::Yellow,
-        Color::Blue,    Color::Magenta, Color::Cyan,    Color::GrayLight,
-        Color::GrayDark,Color::RedLight,Color::GreenLight,Color::YellowLight,
-        Color::BlueLight,Color::MagentaLight,Color::CyanLight,Color::White,
-    };
-    if (idx < 0 || idx > 15) return Color::Default;
-    return table[idx];
+// Map our neutral color to an FTXUI color at render time — the only place FTXUI
+// colors are constructed. Palette16 keeps the named colors (theme-aware).
+ftxui::Color to_ftxui(const ::Color& c) {
+    using K = ::Color::Kind;
+    switch (c.kind) {
+        case K::Palette16: {
+            static const ftxui::Color table[16] = {
+                ftxui::Color::Black,     ftxui::Color::Red,          ftxui::Color::Green,
+                ftxui::Color::Yellow,    ftxui::Color::Blue,         ftxui::Color::Magenta,
+                ftxui::Color::Cyan,      ftxui::Color::GrayLight,    ftxui::Color::GrayDark,
+                ftxui::Color::RedLight,  ftxui::Color::GreenLight,   ftxui::Color::YellowLight,
+                ftxui::Color::BlueLight, ftxui::Color::MagentaLight, ftxui::Color::CyanLight,
+                ftxui::Color::White,
+            };
+            return table[c.index <= 15 ? c.index : 0];
+        }
+        // Palette256 and Rgb are added in Task 2.
+        case K::Default:
+        default:
+            return ftxui::Color::Default;
+    }
 }
 
 Element span_to_element(const StyledSpan& s) {
     Element e = text(s.text);
-    if (s.fg >= 0)  e = e | color(palette16(s.fg));
-    if (s.bg >= 0)  e = e | bgcolor(palette16(s.bg));
-    if (s.bold)     e = e | bold;
+    if (s.fg.kind != ::Color::Kind::Default) e = e | color(to_ftxui(s.fg));
+    if (s.bg.kind != ::Color::Kind::Default) e = e | bgcolor(to_ftxui(s.bg));
+    if (s.bold) e = e | bold;
     return e;
 }
 
@@ -142,7 +153,7 @@ void App::run() {
             const std::string& g = model.group_of[i];
             if (g != last_group) {
                 std::string header = g.empty() ? "Ungrouped" : g;
-                rows.push_back(text(header) | bold | color(Color::GrayLight));
+                rows.push_back(text(header) | bold | color(ftxui::Color::GrayLight));
                 last_group = g;
             }
             Element row = text((static_cast<int>(i) == selected ? "▶ " : "  ")

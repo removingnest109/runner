@@ -47,16 +47,16 @@ void AnsiParser::apply_sgr(const std::string& params) {
             }
             continue;
         }
-        if (c == 0)                    { fg_ = -1; bg_ = -1; bold_ = false; }
+        if (c == 0)                    { fg_ = Color{}; bg_ = Color{}; bold_ = false; }
         else if (c == 1)               { bold_ = true; }
         else if (c == 22)              { bold_ = false; }
-        else if (c >= 30 && c <= 37)   { fg_ = c - 30; }
-        else if (c >= 90 && c <= 97)   { fg_ = 8 + (c - 90); }
-        else if (c == 39)              { fg_ = -1; }
-        else if (c >= 40 && c <= 47)   { bg_ = c - 40; }
-        else if (c >= 100 && c <= 107) { bg_ = 8 + (c - 100); }
-        else if (c == 49)              { bg_ = -1; }
-        // other codes ignored (out of v1 scope)
+        else if (c >= 30 && c <= 37)   { fg_ = Color::palette16(static_cast<std::uint8_t>(c - 30)); }
+        else if (c >= 90 && c <= 97)   { fg_ = Color::palette16(static_cast<std::uint8_t>(8 + (c - 90))); }
+        else if (c == 39)              { fg_ = Color{}; }
+        else if (c >= 40 && c <= 47)   { bg_ = Color::palette16(static_cast<std::uint8_t>(c - 40)); }
+        else if (c >= 100 && c <= 107) { bg_ = Color::palette16(static_cast<std::uint8_t>(8 + (c - 100))); }
+        else if (c == 49)              { bg_ = Color{}; }
+        // other codes ignored
     }
 }
 
@@ -103,6 +103,6 @@ void AnsiParser::clear() {
     lines_.clear();
     cur_line_.clear();
     cur_span_ = StyledSpan{};
-    fg_ = -1; bg_ = -1; bold_ = false;
+    fg_ = Color{}; bg_ = Color{}; bold_ = false;
     in_escape_ = false; esc_buf_.clear();
 }

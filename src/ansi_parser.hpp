@@ -1,14 +1,30 @@
 #pragma once
 #include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <string>
 #include <vector>
 
+struct Color {
+    enum class Kind : std::uint8_t { Default, Palette16, Palette256, Rgb };
+    Kind         kind  = Kind::Default;
+    std::uint8_t index = 0;              // Palette16: 0..15   Palette256: 0..255
+    std::uint8_t r = 0, g = 0, b = 0;    // Rgb
+
+    static Color palette16(std::uint8_t i)  { return Color{Kind::Palette16, i, 0, 0, 0}; }
+    static Color palette256(std::uint8_t i) { return Color{Kind::Palette256, i, 0, 0, 0}; }
+    static Color rgb(std::uint8_t rr, std::uint8_t gg, std::uint8_t bb) {
+        return Color{Kind::Rgb, 0, rr, gg, bb};
+    }
+
+    friend bool operator==(const Color&, const Color&) = default;
+};
+
 struct StyledSpan {
     std::string text;
-    int  fg   = -1;   // -1 default, else 16-color index 0..15
-    int  bg   = -1;
-    bool bold = false;
+    Color fg{};      // default-constructed => Kind::Default
+    Color bg{};
+    bool  bold = false;
 };
 
 using StyledLine = std::vector<StyledSpan>;
@@ -33,7 +49,7 @@ private:
     std::size_t max_lines_;
     StyledLine  cur_line_;
     StyledSpan  cur_span_;     // style applied lazily on first char
-    int  fg_ = -1, bg_ = -1;
+    Color fg_{}, bg_{};
     bool bold_ = false;
 
     bool in_escape_ = false;   // seen ESC, collecting the sequence
