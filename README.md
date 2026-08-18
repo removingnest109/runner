@@ -72,7 +72,7 @@ See `man 1 runner` for the full `runner.toml` schema.
 
 ## License
 
-[MIT](LICENSE) © 2026 Ethan Saenger.
+[MIT](LICENSE)
 
 [ftxui]: https://github.com/ArthurSonzogni/FTXUI
 [toml]: https://github.com/marzer/tomlplusplus
