@@ -1,0 +1,235 @@
+#include "app.hpp"
+#include "ansi_parser.hpp"
+#include "process_runner.hpp"
+
+#include <ftxui/component/component.hpp>
+#include <ftxui/component/screen_interactive.hpp>
+#include <ftxui/dom/elements.hpp>
+
+#include <algorithm>
+#include <string>
+#include <vector>
+
+#include <termios.h>
+#include <unistd.h>
+
+using namespace ftxui;
+
+namespace {
+
+// Restores the terminal's original line discipline on scope exit — even if
+// screen.Loop() throws. FTXUI's own uninstall only restores to the state it
+// saw at Install() time (our ISIG-cleared copy), not the true original, so we
+// must guarantee our own restore runs on every exit path.
+class TermiosGuard {
+public:
+    TermiosGuard() { valid_ = (tcgetattr(STDIN_FILENO, &saved_) == 0); }
+    ~TermiosGuard() { if (valid_) tcsetattr(STDIN_FILENO, TCSANOW, &saved_); }
+    bool valid() const { return valid_; }
+    const termios& saved() const { return saved_; }
+    TermiosGuard(const TermiosGuard&) = delete;
+    TermiosGuard& operator=(const TermiosGuard&) = delete;
+private:
+    termios saved_{};
+    bool valid_ = false;
+};
+
+// Map a 16-color index to an FTXUI Color (0..15 -> palette; -1 handled by caller).
+Color palette16(int idx) {
+    static const Color table[16] = {
+        Color::Black,   Color::Red,     Color::Green,   Color::Yellow,
+        Color::Blue,    Color::Magenta, Color::Cyan,    Color::GrayLight,
+        Color::GrayDark,Color::RedLight,Color::GreenLight,Color::YellowLight,
+        Color::BlueLight,Color::MagentaLight,Color::CyanLight,Color::White,
+    };
+    if (idx < 0 || idx > 15) return Color::Default;
+    return table[idx];
+}
+
+Element span_to_element(const StyledSpan& s) {
+    Element e = text(s.text);
+    if (s.fg >= 0)  e = e | color(palette16(s.fg));
+    if (s.bg >= 0)  e = e | bgcolor(palette16(s.bg));
+    if (s.bold)     e = e | bold;
+    return e;
+}
+
+Element line_to_element(const StyledLine& line) {
+    if (line.empty()) return text("");
+    Elements spans;
+    for (const auto& s : line) spans.push_back(span_to_element(s));
+    return hbox(std::move(spans));
+}
+
+// Display model: actions ordered by group first-appearance, in-group file order.
+struct DisplayModel {
+    std::vector<Action> ordered;
+    std::vector<std::string> group_of;  // group name per ordered action ("" ok)
+};
+
+DisplayModel build_display(const std::vector<Action>& actions) {
+    DisplayModel m;
+    std::vector<std::string> group_order;
+    for (const auto& a : actions) {
+        std::string g = a.group;  // "" allowed (Ungrouped)
+        if (std::find(group_order.begin(), group_order.end(), g) == group_order.end())
+            group_order.push_back(g);
+    }
+    for (const auto& g : group_order) {
+        for (const auto& a : actions) {
+            if (a.group == g) { m.ordered.push_back(a); m.group_of.push_back(g); }
+        }
+    }
+    return m;
+}
+
+std::string state_label(RunState st, int code) {
+    switch (st) {
+        case RunState::Idle:    return "idle";
+        case RunState::Running: return "● running";
+        case RunState::Killed:  return "✕ killed";
+        case RunState::Exited:  return (code == 0 ? "✓ exited 0"
+                                                  : "✗ exited " + std::to_string(code));
+    }
+    return "";
+}
+
+}  // namespace
+
+App::App(std::vector<Action> actions) : actions_(std::move(actions)) {}
+
+void App::run() {
+    auto screen = ScreenInteractive::Fullscreen();
+
+    // FTXUI v5.0.0's raw-mode setup (ScreenInteractive::Install) clears
+    // ICANON/ECHO but leaves ISIG enabled, and installs its own SIGINT
+    // handler that treats Ctrl+C as "quit the whole app" (see
+    // screen_interactive.cpp: RecordSignal/Signal(SIGABRT) -> OnExit()).
+    // That fires before the raw 0x03 byte would ever reach our CatchEvent
+    // handler below, so plain "kill just the running child" Ctrl+C could
+    // never work.
+    //
+    // Let raw Ctrl+C (0x03) reach FTXUI as a keystroke instead of the tty
+    // turning it into SIGINT. Clearing ISIG also disables Ctrl+Z/Ctrl+\ for
+    // the app's runtime — an accepted tradeoff for a full-screen TUI. The
+    // guard restores the original discipline on every exit path (normal
+    // return OR exception out of screen.Loop()).
+    TermiosGuard term_guard;
+    if (term_guard.valid()) {
+        termios raw = term_guard.saved();
+        raw.c_lflag &= ~static_cast<tcflag_t>(ISIG);
+        tcsetattr(STDIN_FILENO, TCSANOW, &raw);
+    }
+
+    DisplayModel model = build_display(actions_);
+
+    AnsiParser parser;
+    ProcessRunner runner([&] { screen.PostEvent(Event::Custom); });
+
+    int selected = 0;          // index into model.ordered
+    bool follow = true;        // auto-scroll output to bottom
+    int scroll_line = 0;       // used when not following
+
+    // FTXUI v5.0.0's Event has no named Event::CtrlC/Event::CtrlD constants;
+    // per ftxui/component/event.cpp these map to raw control bytes 3 and 4.
+    const Event ctrl_c = Event::Special(std::string(1, static_cast<char>(3)));
+    const Event ctrl_d = Event::Special(std::string(1, static_cast<char>(4)));
+
+    auto sidebar = Renderer([&] {
+        Elements rows;
+        std::string last_group = "\x01";  // impossible sentinel
+        for (size_t i = 0; i < model.ordered.size(); ++i) {
+            const std::string& g = model.group_of[i];
+            if (g != last_group) {
+                std::string header = g.empty() ? "Ungrouped" : g;
+                rows.push_back(text(header) | bold | color(Color::GrayLight));
+                last_group = g;
+            }
+            Element row = text((static_cast<int>(i) == selected ? "▶ " : "  ")
+                               + model.ordered[i].label);
+            if (static_cast<int>(i) == selected) row = row | inverted;
+            rows.push_back(row);
+        }
+        return vbox(std::move(rows)) | frame;
+    });
+
+    auto output = Renderer([&] {
+        // Drain any new process output on every render pass.
+        std::string chunk = runner.take_output();
+        if (!chunk.empty()) parser.feed(chunk);
+
+        Elements lines;
+        for (const auto& l : parser.lines()) lines.push_back(line_to_element(l));
+        StyledLine pend = parser.pending_line();
+        if (!pend.empty()) lines.push_back(line_to_element(pend));
+
+        int total = static_cast<int>(lines.size());
+        if (follow && total > 0) {
+            lines.push_back(text("") | focus);  // pin view to bottom
+        } else if (total > 0) {
+            int idx = std::clamp(scroll_line, 0, total - 1);
+            lines[idx] = lines[idx] | focus;
+        }
+        return vbox(std::move(lines)) | yframe | flex;
+    });
+
+    auto layout = Container::Horizontal({sidebar, output});
+
+    auto renderer = Renderer(layout, [&] {
+        std::string status =
+            state_label(runner.state(), runner.exit_code()) +
+            "   ↑↓ select · Enter run · Ctrl+C kill · Ctrl+D quit";
+
+        std::string desc = model.ordered.empty() ? "" : model.ordered[selected].desc;
+
+        return vbox({
+            text(" runner") | bold,
+            separator(),
+            hbox({
+                sidebar->Render() | size(WIDTH, EQUAL, 30),
+                separator(),
+                output->Render() | flex,
+            }) | flex,
+            separator(),
+            text(desc.empty() ? " " : (" " + model.ordered[selected].label + " — " + desc)),
+            separator(),
+            text(" " + status),
+        });
+    });
+
+    auto with_keys = CatchEvent(renderer, [&](Event e) {
+        if (e == Event::Custom) return false;  // just triggers a redraw
+
+        if (e == Event::ArrowDown || e == Event::Character('j')) {
+            if (!model.ordered.empty())
+                selected = std::min(selected + 1, (int)model.ordered.size() - 1);
+            return true;
+        }
+        if (e == Event::ArrowUp || e == Event::Character('k')) {
+            selected = std::max(selected - 1, 0);
+            return true;
+        }
+        if (e == Event::Return) {
+            if (runner.state() != RunState::Running && !model.ordered.empty()) {
+                const Action& a = model.ordered[selected];
+                parser.clear();
+                parser.feed("$ " + a.cmd + "\n");
+                follow = true;
+                runner.start(a);
+            }
+            return true;
+        }
+        if (e == ctrl_c) { runner.kill(); return true; }
+        if (e == ctrl_d) {
+            if (runner.state() == RunState::Running) runner.kill();
+            screen.Exit();
+            return true;
+        }
+        if (e == Event::PageUp)   { follow = false; scroll_line = std::max(scroll_line - 10, 0); return true; }
+        if (e == Event::PageDown) { scroll_line += 10; follow = true; return true; }
+        if (e == Event::End)      { follow = true; return true; }
+        return false;
+    });
+
+    screen.Loop(with_keys);
+}
