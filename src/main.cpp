@@ -2,12 +2,14 @@
 #include "cli.hpp"
 #include "config.hpp"
 
+#include <exception>
 #include <filesystem>
 #include <iostream>
 
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv) {
+  try {
     CliOptions opts = parse_cli(argc, argv);
 
     if (opts.error) {
@@ -52,4 +54,8 @@ int main(int argc, char** argv) {
     App app(std::move(result.actions));
     app.run();
     return 0;
+  } catch (const std::exception& e) {
+    std::cerr << "runner: " << e.what() << "\n";
+    return 1;
+  }
 }

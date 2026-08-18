@@ -152,3 +152,22 @@ TEST_CASE("AnsiParser caps retained scrollback to max_lines") {
     CHECK(p.lines()[0][0].text == "c");   // oldest (a,b) evicted
     CHECK(p.lines()[2][0].text == "e");   // newest retained
 }
+
+TEST_CASE("a style code after a consumed 256-color payload still applies") {
+    AnsiParser p;
+    p.feed("\x1b[38;5;1;1mX\n");   // 38;5;1 consumed+ignored; trailing 1 = bold
+    const StyledLine& line = p.lines()[0];
+    REQUIRE(line.size() == 1);
+    CHECK(line[0].text == "X");
+    CHECK(line[0].fg == -1);       // 256-color did not leak
+    CHECK(line[0].bold == true);   // the code after the payload applied
+}
+
+TEST_CASE("unknown extended color mode is consumed without leaking") {
+    AnsiParser p;
+    p.feed("\x1b[38;9mX\n");        // mode 9 unknown: consume the mode token, apply nothing
+    const StyledLine& line = p.lines()[0];
+    REQUIRE(line.size() == 1);
+    CHECK(line[0].text == "X");
+    CHECK(line[0].fg == -1);
+}

@@ -38,6 +38,7 @@ TEST_CASE("parse_config reports missing required fields") {
 desc = "no label or cmd"
 )");
     CHECK_FALSE(r.errors.empty());
+    CHECK(r.actions.empty());
 }
 
 TEST_CASE("parse_config reports malformed TOML") {

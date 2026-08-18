@@ -1,7 +1,6 @@
 #include <doctest/doctest.h>
 #include "cli.hpp"
 #include <filesystem>
-#include <fstream>
 #include <vector>
 #include <unistd.h>
 

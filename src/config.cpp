@@ -29,10 +29,12 @@ ParseResult parse_config(const std::string& toml_content) {
             continue;
         }
         Action a;
+        bool complete = true;
         if (auto v = (*t)["label"].value<std::string>()) a.label = *v;
-        else r.errors.push_back("action #" + std::to_string(idx) + ": missing 'label'");
+        else { r.errors.push_back("action #" + std::to_string(idx) + ": missing 'label'"); complete = false; }
         if (auto v = (*t)["cmd"].value<std::string>()) a.cmd = *v;
-        else r.errors.push_back("action #" + std::to_string(idx) + ": missing 'cmd'");
+        else { r.errors.push_back("action #" + std::to_string(idx) + ": missing 'cmd'"); complete = false; }
+        if (!complete) continue;   // errors recorded; don't push an incomplete action
         a.desc  = (*t)["desc"].value_or(std::string{});
         a.cwd   = (*t)["cwd"].value_or(std::string{});
         a.group = (*t)["group"].value_or(std::string{});
