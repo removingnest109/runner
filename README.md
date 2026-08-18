@@ -40,7 +40,28 @@ sudo cmake --install build --prefix /usr/local
 Installs the `runner` binary, the `runner.1` man page, and
 `share/doc/runner/runner.toml.example`.
 
-## Void Linux package
+## Packages
+
+Packaging for four distributions lives under [`packaging/`](packaging/), all
+building the **same `v0.1.0` upstream release**. Each has its own README with
+build/publish/install commands, and every step is also wired up as a
+`runner.toml` action in the **Packaging** group (so you can build a package from
+inside `runner` itself).
+
+| Distro | Files | FTXUI source | Notes |
+|--------|-------|--------------|-------|
+| **Arch (AUR)** | [`packaging/aur/`](packaging/aur/) — `PKGBUILD`, `.SRCINFO` | AUR [`ftxui5`](https://aur.archlinux.org/packages/ftxui5) (5.0.0, build-only) | `tomlplusplus`/`doctest` from `extra` |
+| **Nix** | [`flake.nix`](flake.nix) + [`packaging/nix/package.nix`](packaging/nix/package.nix) | nixpkgs `ftxui` (pinned `nixos-24.11` = 5.0.0) | `nix run github:removingnest109/runner` |
+| **Debian / Ubuntu** | [`packaging/debian/`](packaging/debian/) | `libftxui-dev` (5.x, runtime) | Debian 13+/Ubuntu 25.04+ |
+| **Void** | [`packaging/void/template`](packaging/void/template) | FetchContent tarball (static, offline) | unchanged |
+
+The AUR, Nix, and Debian packages use their distro's **system** FTXUI and toml++
+instead of CMake's `FetchContent` fallback (which needs network); doctest is
+build/test-only in every case and never a runtime dependency. `runner` requires
+the FTXUI **5.x** API (it does not build against 7.x), so each package targets a
+FTXUI 5.x provider.
+
+### Void Linux
 
 A ready-to-use xbps-src template lives at [`packaging/void/template`](packaging/void/template).
 To build and install it locally:

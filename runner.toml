@@ -34,3 +34,67 @@ label = "Build Void package"
 cmd   = 'mkdir -p "$HOME/void-packages/srcpkgs/runner" && cp packaging/void/template "$HOME/void-packages/srcpkgs/runner/template" && cd "$HOME/void-packages" && ./xbps-src clean runner && ./xbps-src -Q pkg runner && ls -la hostdir/binpkgs/runner-*.xbps'
 desc  = "Sync the template into ~/void-packages and build the .xbps (runs tests)"
 group = "Packaging"
+
+# --- AUR (Arch) ------------------------------------------------------------
+# Needs: makepkg + the AUR ftxui5 dep installed (see packaging/aur/README.md).
+[[action]]
+label = "AUR: build package"
+cmd   = "makepkg -f"
+desc  = "Build the AUR package; check() runs the doctest suite"
+group = "Packaging"
+cwd   = "packaging/aur"
+
+[[action]]
+label = "AUR: regen .SRCINFO"
+cmd   = "makepkg --printsrcinfo > .SRCINFO && echo 'wrote packaging/aur/.SRCINFO'"
+desc  = "Regenerate .SRCINFO after editing PKGBUILD"
+group = "Packaging"
+cwd   = "packaging/aur"
+
+[[action]]
+label = "AUR: namcap lint"
+cmd   = "namcap PKGBUILD; for p in runner-*.pkg.tar.zst; do [ -e \"$p\" ] && namcap \"$p\"; done"
+desc  = "Lint the PKGBUILD (and built package, if present) with namcap"
+group = "Packaging"
+cwd   = "packaging/aur"
+
+# --- Nix -------------------------------------------------------------------
+# Needs: the nix CLI with flakes enabled.
+[[action]]
+label = "Nix: build"
+cmd   = "nix build .#runner --print-build-logs && ./result/bin/runner --version"
+desc  = "Build the flake's default package and print its version"
+group = "Packaging"
+
+[[action]]
+label = "Nix: flake check"
+cmd   = "nix flake check --print-build-logs"
+desc  = "Evaluate the flake and build its checks"
+group = "Packaging"
+
+[[action]]
+label = "Nix: lock"
+cmd   = "nix flake lock && echo 'wrote flake.lock'"
+desc  = "Pin nixpkgs by generating flake.lock"
+group = "Packaging"
+
+# --- Debian / Ubuntu -------------------------------------------------------
+# Needs: a Debian 13+/Ubuntu 25.04+ host with build-essential, debhelper,
+# libftxui-dev, libtomlplusplus-dev, doctest-dev (see packaging/debian/README.md).
+[[action]]
+label = "Debian: build .deb"
+cmd   = "WORK=\"$PWD/dist/deb\" packaging/debian/build.sh"
+desc  = "Assemble debian/ onto the v0.1.0 tarball and build the .deb (runs tests)"
+group = "Packaging"
+
+[[action]]
+label = "Debian: lint .deb"
+cmd   = "deb=$(ls -t dist/deb/runner_*_*.deb 2>/dev/null | head -1); [ -n \"$deb\" ] && lintian --info --display-info \"$deb\" || echo 'no .deb in dist/deb — run \"Debian: build .deb\" first'"
+desc  = "Run lintian on the most recently built .deb"
+group = "Packaging"
+
+[[action]]
+label = "Debian: inspect .deb"
+cmd   = "deb=$(ls -t dist/deb/runner_*_*.deb 2>/dev/null | head -1); [ -n \"$deb\" ] && { dpkg-deb --info \"$deb\"; echo '--- Depends ---'; dpkg-deb -f \"$deb\" Depends; echo '--- contents ---'; dpkg-deb --contents \"$deb\"; } || echo 'no .deb in dist/deb — build it first'"
+desc  = "Show metadata, runtime Depends, and file list of the built .deb"
+group = "Packaging"

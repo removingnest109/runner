@@ -1,0 +1,39 @@
+# Maintainer: Ethan Saenger <ethan@saenger5.com>
+pkgname=runner
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="TUI project script runner"
+arch=('x86_64')
+url="https://github.com/removingnest109/runner"
+license=('MIT')
+# FTXUI is not in the official repos; the code requires the 5.x API (it does not
+# compile against FTXUI 7.x), and find_package(ftxui 5.0.0) uses SameMajorVersion
+# matching, so the AUR ftxui5 package (installed under /usr/{include,lib}/ftxui5)
+# is the correct provider. It ships static libs, so it is a build-only dep.
+# tomlplusplus is header-only and doctest is used only by the test suite, so both
+# are makedepends. gcc-libs (libstdc++) is the only shared-library runtime dep.
+depends=('gcc-libs')
+makedepends=('cmake' 'ftxui5' 'tomlplusplus' 'doctest')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('d41d83813c5726c09a6bb738ddd0b7aaee0a6f7215fc58140e28668b885df99e')
+
+build() {
+  cmake -S "$pkgname-$pkgver" -B build \
+    -DCMAKE_BUILD_TYPE=None \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DRUNNER_BUILD_TESTS=ON \
+    -Dftxui_DIR=/usr/lib/ftxui5/cmake/ftxui \
+    -Wno-dev
+  cmake --build build
+}
+
+check() {
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  install -Dm644 "$pkgname-$pkgver/LICENSE" \
+    "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

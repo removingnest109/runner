@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+# Build with debhelper's CMake buildsystem. debhelper compat 13 enables the
+# standard hardening build flags automatically.
+
+%:
+	dh $@ --buildsystem=cmake
+
+# Build the doctest suite (default) so dh_auto_test can run it. doctest is a
+# build-only dependency; it is not linked into the installed runner binary.
+override_dh_auto_configure:
+	dh_auto_configure -- \
+	  -DRUNNER_BUILD_TESTS=ON
+
+# dh_auto_test runs ctest under the cmake buildsystem; keep it explicit so a
+# test failure fails the package build.
+override_dh_auto_test:
+	dh_auto_test

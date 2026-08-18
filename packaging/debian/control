@@ -1,0 +1,33 @@
+Source: runner
+Section: utils
+Priority: optional
+Maintainer: Ethan Saenger <ethan@saenger5.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ cmake (>= 3.20),
+ libftxui-dev (>= 5.0.0),
+ libftxui-dev (<< 6),
+ libtomlplusplus-dev (>= 3.4.0),
+ doctest-dev (>= 2.4.11)
+Standards-Version: 4.7.0
+Homepage: https://github.com/removingnest109/runner
+Rules-Requires-Root: no
+Vcs-Git: https://github.com/removingnest109/runner.git
+Vcs-Browser: https://github.com/removingnest109/runner
+
+Package: runner
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: TUI project script runner
+ runner reads a runner.toml describing a set of actions, shows them in an
+ interactive terminal list, and runs the selected one in a child shell while
+ streaming its output — including 256-color and truecolor ANSI — into a
+ scrolling pane.
+ .
+ Features per-project action lists with groups, ${VAR} expansion and per-action
+ environment injection, upward config search, and a --generate-config starter.
+ .
+ The binary dynamically links the system FTXUI shared libraries; the toml++
+ header-only parser and the doctest test framework are used only at build time.

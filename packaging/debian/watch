@@ -1,0 +1,4 @@
+version=4
+opts=filenamemangle=s%(?:.*?)?v?(\d[\d.]*)\.tar\.gz%runner-$1.tar.gz% \
+  https://github.com/removingnest109/runner/tags \
+  (?:.*?/)?v?(\d[\d.]+)\.tar\.gz
