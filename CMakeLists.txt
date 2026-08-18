@@ -25,6 +25,7 @@ FetchContent_MakeAvailable(tomlplusplus)
 # Library of all non-main sources (sources appended by later tasks).
 add_library(runner_lib STATIC
   src/config.cpp
+  src/ansi_parser.cpp
 )
 target_include_directories(runner_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(runner_lib PUBLIC tomlplusplus::tomlplusplus)
@@ -36,6 +37,7 @@ add_executable(runner_tests
   tests/test_smoke.cpp
   tests/test_config_parse.cpp
   tests/test_config_load.cpp
+  tests/test_ansi_parser.cpp
 )
 target_link_libraries(runner_tests PRIVATE runner_lib doctest::doctest)
 
