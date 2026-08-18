@@ -15,3 +15,16 @@ label = "Configure"
 cmd   = "cmake -S . -B build"
 desc  = "Re-run CMake configure"
 group = "Dev"
+
+[[action]]
+label = "Truecolor demo"
+cmd   = "printf '\\033[38;2;255;128;0mtruecolor orange\\033[0m \\033[38;5;39m256-blue\\033[0m\\n'"
+desc  = "Prints a truecolor and a 256-color span"
+group = "Demo"
+
+[[action]]
+label = "Env demo"
+cmd   = "echo \"BOARD=$BOARD PATH_HEAD=${PATH%%:*}\""
+desc  = "Echoes an injected var"
+group = "Demo"
+env   = { BOARD = "leg" }
