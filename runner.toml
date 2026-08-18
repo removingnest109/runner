@@ -1,0 +1,17 @@
+[[action]]
+label = "Build"
+cmd   = "cmake --build build"
+desc  = "Compile runner and its tests"
+group = "Dev"
+
+[[action]]
+label = "Test"
+cmd   = "./build/runner_tests"
+desc  = "Run the doctest suite"
+group = "Dev"
+
+[[action]]
+label = "Configure"
+cmd   = "cmake -S . -B build"
+desc  = "Re-run CMake configure"
+group = "Dev"

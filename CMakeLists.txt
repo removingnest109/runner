@@ -58,3 +58,6 @@ target_link_libraries(runner_tests PRIVATE runner_lib doctest::doctest)
 
 enable_testing()
 add_test(NAME runner_tests COMMAND runner_tests)
+
+add_executable(runner src/main.cpp)
+target_link_libraries(runner PRIVATE runner_lib)
