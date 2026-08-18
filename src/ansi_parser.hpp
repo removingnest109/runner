@@ -1,4 +1,6 @@
 #pragma once
+#include <cstddef>
+#include <deque>
 #include <string>
 #include <vector>
 
@@ -15,8 +17,10 @@ using StyledLine = std::vector<StyledSpan>;
 // Supports 16-color SGR foreground/background, bold, and reset only.
 class AnsiParser {
 public:
+    explicit AnsiParser(std::size_t max_lines = 10000);
+
     void feed(const std::string& bytes);
-    const std::vector<StyledLine>& lines() const { return lines_; }
+    const std::deque<StyledLine>& lines() const { return lines_; }
     StyledLine pending_line() const;
     void clear();
 
@@ -25,7 +29,8 @@ private:
     void push_span_if_any();                     // flush cur_span_ into cur_line_
     void flush_line();                           // finish current line
 
-    std::vector<StyledLine> lines_;
+    std::deque<StyledLine> lines_;
+    std::size_t max_lines_;
     StyledLine  cur_line_;
     StyledSpan  cur_span_;     // style applied lazily on first char
     int  fg_ = -1, bg_ = -1;

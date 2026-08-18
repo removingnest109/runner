@@ -144,3 +144,11 @@ TEST_CASE("256-color background is consumed and ignored") {
     REQUIRE(line.size() == 1);
     CHECK(line[0].bg == -1);
 }
+
+TEST_CASE("AnsiParser caps retained scrollback to max_lines") {
+    AnsiParser p(3);
+    p.feed("a\nb\nc\nd\ne\n");
+    REQUIRE(p.lines().size() == 3);       // capped to 3
+    CHECK(p.lines()[0][0].text == "c");   // oldest (a,b) evicted
+    CHECK(p.lines()[2][0].text == "e");   // newest retained
+}

@@ -2,6 +2,8 @@
 #include <charconv>
 #include <sstream>
 
+AnsiParser::AnsiParser(std::size_t max_lines) : max_lines_(max_lines) {}
+
 void AnsiParser::push_span_if_any() {
     if (!cur_span_.text.empty()) {
         cur_line_.push_back(cur_span_);
@@ -13,6 +15,7 @@ void AnsiParser::flush_line() {
     push_span_if_any();
     lines_.push_back(cur_line_);
     cur_line_.clear();
+    while (lines_.size() > max_lines_) lines_.pop_front();
 }
 
 void AnsiParser::apply_sgr(const std::string& params) {
