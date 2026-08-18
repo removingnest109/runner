@@ -7,6 +7,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
 
+find_package(Threads REQUIRED)
+
 # Allow deps whose cmake_minimum_required predates CMake 4.x to configure,
 # and silence their bundled-CMake deprecation notices (our own CMake is modern).
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
@@ -26,9 +28,10 @@ FetchContent_MakeAvailable(tomlplusplus)
 add_library(runner_lib STATIC
   src/config.cpp
   src/ansi_parser.cpp
+  src/process_runner.cpp
 )
 target_include_directories(runner_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(runner_lib PUBLIC tomlplusplus::tomlplusplus)
+target_link_libraries(runner_lib PUBLIC tomlplusplus::tomlplusplus Threads::Threads)
 set_target_properties(runner_lib PROPERTIES LINKER_LANGUAGE CXX)
 
 # Test executable.
@@ -38,6 +41,7 @@ add_executable(runner_tests
   tests/test_config_parse.cpp
   tests/test_config_load.cpp
   tests/test_ansi_parser.cpp
+  tests/test_process_runner.cpp
 )
 target_link_libraries(runner_tests PRIVATE runner_lib doctest::doctest)
 
