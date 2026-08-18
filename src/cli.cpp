@@ -1,12 +1,17 @@
 #include "cli.hpp"
+#include "version.hpp"
 #include <fstream>
 #include <string>
 
 namespace fs = std::filesystem;
 
+std::string version_text() {
+    return "runner " RUNNER_VERSION "\n";
+}
+
 std::string help_text() {
     return
-        "runner - TUI project script runner\n"
+        "runner " RUNNER_VERSION " - TUI project script runner\n"
         "\n"
         "Usage: runner [options]\n"
         "\n"
@@ -14,6 +19,7 @@ std::string help_text() {
         "  -c, --config PATH   Use PATH instead of searching for runner.toml\n"
         "  --generate-config   Write a starter runner.toml in the current dir\n"
         "  -h, --help          Show this help\n"
+        "  -v, --version       Print the version and exit\n"
         "\n"
         "With no options, runner searches upward from the current directory\n"
         "for runner.toml and opens the interactive UI.\n";
@@ -25,6 +31,8 @@ CliOptions parse_cli(int argc, char** argv) {
         std::string arg = argv[i];
         if (arg == "-h" || arg == "--help") {
             o.show_help = true;
+        } else if (arg == "-v" || arg == "--version") {
+            o.show_version = true;
         } else if (arg == "--generate-config") {
             o.generate_config = true;
         } else if (arg == "-c" || arg == "--config") {

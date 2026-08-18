@@ -25,6 +25,18 @@ TEST_CASE("--help sets show_help") {
     CHECK(run_cli({"runner", "-h"}).show_help);
 }
 
+TEST_CASE("--version sets show_version") {
+    CHECK(run_cli({"runner", "--version"}).show_version);
+    CHECK(run_cli({"runner", "-v"}).show_version);
+}
+
+TEST_CASE("version_text names runner and is non-empty") {
+    std::string v = version_text();
+    CHECK(v.rfind("runner ", 0) == 0);  // starts with "runner "
+    CHECK(v.back() == '\n');
+    CHECK(v.size() > std::string("runner \n").size());  // has a version body
+}
+
 TEST_CASE("--generate-config sets the flag") {
     CHECK(run_cli({"runner", "--generate-config"}).generate_config);
 }

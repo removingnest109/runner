@@ -1,0 +1,5 @@
+#pragma once
+
+// Generated from src/version.hpp.in by CMake configure_file.
+// PROJECT_VERSION comes from project(runner VERSION ...).
+#define RUNNER_VERSION "@PROJECT_VERSION@"

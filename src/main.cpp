@@ -16,6 +16,10 @@ int main(int argc, char** argv) {
         std::cerr << "runner: " << opts.message << "\n\n" << help_text();
         return 2;
     }
+    if (opts.show_version) {
+        std::cout << version_text();
+        return 0;
+    }
     if (opts.show_help) {
         std::cout << help_text();
         return 0;

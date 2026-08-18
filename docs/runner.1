@@ -1,0 +1,90 @@
+.TH RUNNER 1 "2026-08-18" "runner 0.1.0" "User Commands"
+.SH NAME
+runner \- TUI project script runner
+.SH SYNOPSIS
+.B runner
+.RI [ options ]
+.SH DESCRIPTION
+.B runner
+is an interactive terminal (TUI) launcher for per-project commands. It reads a
+.B runner.toml
+file describing a set of actions, presents them in a selectable list, and runs
+the chosen action in a child shell while streaming its output \(em including
+256-color and truecolor ANSI \(em into a scrolling pane.
+.PP
+With no options,
+.B runner
+searches upward from the current directory for
+.B runner.toml
+and opens the interactive UI. Exactly one action runs at a time; an action's
+working directory is resolved relative to the config file.
+.SH OPTIONS
+.TP
+.BR \-c ", " \-\-config " " \fIPATH\fR
+Use \fIPATH\fR as the config file instead of searching for
+.BR runner.toml .
+.TP
+.B \-\-generate\-config
+Write a starter
+.B runner.toml
+into the current directory. Refuses to overwrite an existing file.
+.TP
+.BR \-h ", " \-\-help
+Show a usage summary and exit.
+.TP
+.BR \-v ", " \-\-version
+Print the version and exit.
+.SH CONFIGURATION
+Actions are declared as an array of tables. Each
+.B [[action]]
+supports:
+.TP
+.B label
+Short name shown in the list (required).
+.TP
+.B cmd
+Command run via \fB/bin/sh -c\fR (required).
+.TP
+.B desc
+One-line description (optional).
+.TP
+.B group
+Group heading the action is listed under (optional).
+.TP
+.B cwd
+Working directory, resolved relative to the config file (optional).
+.TP
+.B env
+Table of environment variables set for the action's child process (optional).
+.PP
+The string fields
+.B cwd
+and each
+.B env
+value support
+.BI ${ VAR }
+expansion against
+.BR runner 's
+own environment, resolved when the config is loaded. An undefined variable is a
+load error.
+.SH FILES
+.TP
+.B ./runner.toml
+Per-project action definitions (searched for upward from the current directory).
+.TP
+.I PREFIX/share/doc/runner/runner.toml.example
+Installed example configuration.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Config not found, config error, or a runtime failure.
+.TP
+.B 2
+Invalid command-line usage.
+.SH AUTHOR
+Ethan Saenger
+.SH HOMEPAGE
+https://github.com/removingnest109/runner

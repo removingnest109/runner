@@ -1,0 +1,28 @@
+# Template file for 'runner'
+pkgname=runner
+version=0.1.0
+revision=1
+build_style=cmake
+# FTXUI is not packaged in Void, so it is vendored as a second distfile and
+# built from source (statically linked). Point FetchContent at the extracted
+# tree and forbid any network access during configure.
+configure_args="-DFETCHCONTENT_SOURCE_DIR_FTXUI=${XBPS_BUILDDIR}/${wrksrc}/FTXUI-5.0.0
+ -DFETCHCONTENT_FULLY_DISCONNECTED=ON"
+makedepends="tomlplusplus-devel doctest-devel"
+short_desc="TUI project script runner"
+maintainer="Ethan Saenger <ethan@saenger5.com>"
+license="MIT"
+homepage="https://github.com/removingnest109/runner"
+distfiles="https://github.com/removingnest109/runner/archive/refs/tags/v${version}.tar.gz
+ https://github.com/ArthurSonzogni/FTXUI/archive/refs/tags/v5.0.0.tar.gz"
+# Run `./xbps-src -i fetch runner` then `xgensum -i srcpkgs/runner/template` to
+# fill these in once the v0.1.0 tag is pushed (both are placeholders):
+checksum="@@RUNNER_TARBALL_SHA256@@
+ @@FTXUI_5.0.0_TARBALL_SHA256@@"
+# Both tarballs extract as siblings under a shared wrksrc; build the runner one.
+create_wrksrc=yes
+build_wrksrc="runner-${version}"
+
+post_install() {
+	vlicense LICENSE
+}
