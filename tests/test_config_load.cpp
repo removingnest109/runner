@@ -1,5 +1,6 @@
 #include <doctest/doctest.h>
 #include "config.hpp"
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <unistd.h>
@@ -81,5 +82,73 @@ TEST_CASE("load_config passes an absolute cwd through unchanged") {
     REQUIRE(r.errors.empty());
     REQUIRE(r.actions.size() == 1);
     CHECK(fs::path(r.actions[0].cwd) == fs::weakly_canonical(abs));
+    fs::remove_all(root);
+}
+
+TEST_CASE("expand_vars substitutes a defined variable") {
+    auto lookup = [](std::string_view n) -> std::optional<std::string> {
+        if (n == "FOO") return std::string("bar");
+        return std::nullopt;
+    };
+    bool undef = false;
+    std::string out = expand_vars("x=${FOO}!", lookup, [&](std::string_view){ undef = true; });
+    CHECK(out == "x=bar!");
+    CHECK_FALSE(undef);
+}
+
+TEST_CASE("expand_vars reports an undefined variable and expands to empty") {
+    auto lookup = [](std::string_view) -> std::optional<std::string> { return std::nullopt; };
+    std::string seen;
+    std::string out = expand_vars("a${MISSING}b", lookup,
+                                  [&](std::string_view n){ seen = std::string(n); });
+    CHECK(out == "ab");
+    CHECK(seen == "MISSING");
+}
+
+TEST_CASE("expand_vars leaves a literal dollar untouched") {
+    auto lookup = [](std::string_view) -> std::optional<std::string> { return std::nullopt; };
+    std::string out = expand_vars("cost $5 and $x", lookup, [](std::string_view){});
+    CHECK(out == "cost $5 and $x");
+}
+
+TEST_CASE("expand_vars leaves an unterminated brace verbatim") {
+    auto lookup = [](std::string_view) -> std::optional<std::string> { return std::string("v"); };
+    std::string out = expand_vars("a${UNCLOSED", lookup, [](std::string_view){});
+    CHECK(out == "a${UNCLOSED");
+}
+
+TEST_CASE("load_config expands ${VAR} in cwd before resolving it") {
+    fs::path root = make_temp_dir();
+    fs::create_directories(root / "sub");
+    setenv("RUNNER_TEST_SUB", "sub", 1);
+    std::ofstream(root / "runner.toml") <<
+        "[[action]]\nlabel=\"A\"\ncmd=\"true\"\ncwd=\"${RUNNER_TEST_SUB}\"\n";
+    ParseResult r = load_config(root / "runner.toml");
+    REQUIRE(r.errors.empty());
+    CHECK(fs::path(r.actions[0].cwd) == fs::weakly_canonical(root / "sub"));
+    unsetenv("RUNNER_TEST_SUB");
+    fs::remove_all(root);
+}
+
+TEST_CASE("load_config expands ${VAR} in env values") {
+    fs::path root = make_temp_dir();
+    setenv("RUNNER_TEST_PREFIX", "/opt/x", 1);
+    std::ofstream(root / "runner.toml") <<
+        "[[action]]\nlabel=\"A\"\ncmd=\"true\"\nenv = { P = \"${RUNNER_TEST_PREFIX}/bin\" }\n";
+    ParseResult r = load_config(root / "runner.toml");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions[0].env.size() == 1);
+    CHECK(r.actions[0].env[0].second == "/opt/x/bin");
+    unsetenv("RUNNER_TEST_PREFIX");
+    fs::remove_all(root);
+}
+
+TEST_CASE("load_config errors on an undefined variable in cwd") {
+    fs::path root = make_temp_dir();
+    unsetenv("RUNNER_DEFINITELY_UNSET");
+    std::ofstream(root / "runner.toml") <<
+        "[[action]]\nlabel=\"A\"\ncmd=\"true\"\ncwd=\"${RUNNER_DEFINITELY_UNSET}\"\n";
+    ParseResult r = load_config(root / "runner.toml");
+    CHECK_FALSE(r.errors.empty());
     fs::remove_all(root);
 }

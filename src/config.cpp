@@ -1,5 +1,6 @@
 #include "config.hpp"
 #include <toml++/toml.hpp>
+#include <cstdlib>
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -53,6 +54,30 @@ ParseResult parse_config(const std::string& toml_content) {
     return r;
 }
 
+std::string expand_vars(
+    const std::string& in,
+    const std::function<std::optional<std::string>(std::string_view)>& lookup,
+    const std::function<void(std::string_view)>& on_undefined) {
+    std::string out;
+    out.reserve(in.size());
+    for (std::size_t i = 0; i < in.size();) {
+        if (in[i] == '$' && i + 1 < in.size() && in[i + 1] == '{') {
+            std::size_t close = in.find('}', i + 2);
+            if (close == std::string::npos) {
+                out.append(in, i, std::string::npos);   // unterminated: verbatim
+                break;
+            }
+            std::string_view name(in.data() + i + 2, close - (i + 2));
+            if (auto val = lookup(name)) out += *val;
+            else                         on_undefined(name);   // expands to ""
+            i = close + 1;
+        } else {
+            out += in[i++];
+        }
+    }
+    return out;
+}
+
 namespace fs = std::filesystem;
 
 std::optional<fs::path> find_config(fs::path start_dir) {
@@ -81,11 +106,35 @@ ParseResult load_config(const fs::path& config_path) {
 
     fs::path base = config_path.parent_path();
     std::error_code ec;
+
+    auto env_lookup = [](std::string_view name) -> std::optional<std::string> {
+        std::string key(name);
+        if (const char* v = std::getenv(key.c_str())) return std::string(v);
+        return std::nullopt;
+    };
+
     for (auto& a : r.actions) {
+        // Expand ${VAR} in env values.
+        for (auto& [k, v] : a.env) {
+            v = expand_vars(v, env_lookup, [&](std::string_view name) {
+                r.errors.push_back("action '" + a.label +
+                    "': undefined variable in env '" + k + "': " + std::string(name));
+            });
+        }
+
+        // Expand ${VAR} in cwd before resolving it.
+        bool cwd_ok = true;
+        a.cwd = expand_vars(a.cwd, env_lookup, [&](std::string_view name) {
+            r.errors.push_back("action '" + a.label +
+                "': undefined variable in cwd: " + std::string(name));
+            cwd_ok = false;
+        });
+        if (!cwd_ok) continue;   // don't resolve a cwd built from an undefined var
+
         fs::path dir;
-        if (a.cwd.empty())                 dir = base;
+        if (a.cwd.empty())                      dir = base;
         else if (fs::path(a.cwd).is_absolute()) dir = a.cwd;
-        else                               dir = base / a.cwd;
+        else                                    dir = base / a.cwd;
 
         if (!fs::is_directory(dir, ec)) {
             r.errors.push_back("action '" + a.label +
