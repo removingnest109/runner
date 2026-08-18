@@ -70,3 +70,13 @@ TEST_CASE("start is a no-op while already running") {
     // "second" must never have run.
     CHECK(pr.take_output().find("second") == std::string::npos);
 }
+
+TEST_CASE("injects per-action env vars into the child") {
+    ProcessRunner pr([]{});
+    Action a{.label = "e", .cmd = "printf %s \"$RUNNER_TEST_VAR\""};
+    a.env.push_back({"RUNNER_TEST_VAR", "injected123"});
+    pr.start(a);
+    REQUIRE(wait_until_done(pr, 5s));
+    CHECK(pr.state() == RunState::Exited);
+    CHECK(pr.take_output().find("injected123") != std::string::npos);
+}

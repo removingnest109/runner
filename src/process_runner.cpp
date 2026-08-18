@@ -3,6 +3,7 @@
 #include <cerrno>
 #include <chrono>
 #include <csignal>
+#include <cstdlib>
 #include <cstring>
 #include <unistd.h>
 #include <sys/wait.h>
@@ -66,6 +67,9 @@ void ProcessRunner::start(const Action& action) {
         close(fds[1]);
         if (!action.cwd.empty()) {
             if (chdir(action.cwd.c_str()) != 0) _exit(127);
+        }
+        for (const auto& [key, value] : action.env) {
+            setenv(key.c_str(), value.c_str(), 1);   // overwrite; inherits parent env
         }
         execl("/bin/sh", "sh", "-c", action.cmd.c_str(), (char*)nullptr);
         _exit(127);  // exec failed
