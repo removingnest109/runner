@@ -27,20 +27,20 @@ git clone --depth 1 https://github.com/void-linux/void-packages.git
 cd void-packages
 ./xbps-src binary-bootstrap
 
-# 2. Drop the template in.
+# 2. Drop the template in (checksums are already filled in).
 mkdir -p srcpkgs/runner
 cp /path/to/runner/packaging/void/template srcpkgs/runner/template
 
-# 3. Fill in the two checksums (needs the v0.1.0 git tag pushed to GitHub).
-./xbps-src -i fetch runner        # downloads both distfiles
-xgensum -i srcpkgs/runner/template
-
-# 4. Build (add -Q to also compile+run the doctest suite during the build).
+# 3. Build (add -Q to also compile+run the doctest suite during the build).
+#    This needs the v0.1.0 git tag pushed to GitHub so the source tarball exists.
 ./xbps-src -Q pkg runner
 
-# 5. Install the freshly built package from the local repo.
+# 4. Install the freshly built package from the local repo.
 sudo xbps-install -R hostdir/binpkgs runner
 ```
+
+If you bump `version=` later, regenerate the checksums with
+`./xbps-src fetch runner && xgensum -i srcpkgs/runner/template`.
 
 Verify: `runner --version` prints `runner 0.1.0`; `man 1 runner` shows the page.
 
