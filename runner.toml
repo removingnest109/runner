@@ -28,3 +28,9 @@ cmd   = "echo \"BOARD=$BOARD PATH_HEAD=${PATH%%:*}\""
 desc  = "Echoes an injected var"
 group = "Demo"
 env   = { BOARD = "leg" }
+
+[[action]]
+label = "Build Void package"
+cmd   = 'mkdir -p "$HOME/void-packages/srcpkgs/runner" && cp packaging/void/template "$HOME/void-packages/srcpkgs/runner/template" && cd "$HOME/void-packages" && ./xbps-src clean runner && ./xbps-src -Q pkg runner && ls -la hostdir/binpkgs/runner-*.xbps'
+desc  = "Sync the template into ~/void-packages and build the .xbps (runs tests)"
+group = "Packaging"
