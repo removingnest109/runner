@@ -36,14 +36,31 @@ void AnsiParser::apply_sgr(const std::string& params) {
 
     for (size_t i = 0; i < codes.size(); ++i) {
         int c = codes[i];
-        // 256-color / truecolor are out of scope for v1: consume the extended
-        // sub-parameters and apply no style, so they don't leak as 16-color codes.
+        // 256-color (38;5;N / 48;5;N) and truecolor (38;2;R;G;B / 48;2;R;G;B).
+        // Index-advance mirrors the consume logic so a code after the payload
+        // still applies (e.g. 38;5;200;1m => palette256 + bold). Never throws.
         if (c == 38 || c == 48) {
+            Color& target = (c == 38) ? fg_ : bg_;
             if (i + 1 < codes.size()) {
                 int mode = codes[i + 1];
-                if (mode == 5)      i += 2;  // 38;5;N
-                else if (mode == 2) i += 4;  // 38;2;R;G;B
-                else                i += 1;  // unknown extended mode
+                if (mode == 5) {
+                    if (i + 2 < codes.size()) {
+                        int n = codes[i + 2];
+                        if (n >= 0 && n <= 255)
+                            target = Color::palette256(static_cast<std::uint8_t>(n));
+                    }
+                    i += 2;                    // consume mode + index
+                } else if (mode == 2) {
+                    if (i + 4 < codes.size()) {
+                        auto ch = [](int v) {
+                            return static_cast<std::uint8_t>(v < 0 ? 0 : (v > 255 ? 255 : v));
+                        };
+                        target = Color::rgb(ch(codes[i + 2]), ch(codes[i + 3]), ch(codes[i + 4]));
+                    }
+                    i += 4;                    // consume mode + R;G;B
+                } else {
+                    i += 1;                    // unknown extended mode
+                }
             }
             continue;
         }

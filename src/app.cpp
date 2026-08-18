@@ -50,7 +50,10 @@ ftxui::Color to_ftxui(const ::Color& c) {
             };
             return table[c.index <= 15 ? c.index : 0];
         }
-        // Palette256 and Rgb are added in Task 2.
+        case K::Palette256:
+            return ftxui::Color(static_cast<ftxui::Color::Palette256>(c.index));
+        case K::Rgb:
+            return ftxui::Color::RGB(c.r, c.g, c.b);
         case K::Default:
         default:
             return ftxui::Color::Default;

@@ -118,31 +118,30 @@ TEST_CASE("malformed SGR parameters do not crash and text is preserved") {
     CHECK(p.lines()[0].back().fg == Color::palette16(1));  // oversized param ignored, red preserved
 }
 
-TEST_CASE("256-color foreground is consumed and ignored") {
+TEST_CASE("256-color foreground sets a Palette256 color") {
     AnsiParser p;
-    p.feed("\x1b[38;5;31mX\n");   // the 31 must NOT leak as red
+    p.feed("\x1b[38;5;196mX\n");
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
     CHECK(line[0].text == "X");
-    CHECK(line[0].fg == Color{});
+    CHECK(line[0].fg == Color::palette256(196));
 }
 
-TEST_CASE("truecolor foreground is consumed and ignored") {
+TEST_CASE("truecolor foreground sets an RGB color") {
     AnsiParser p;
-    p.feed("\x1b[38;2;0;255;0mY\x1b[0m\n");
+    p.feed("\x1b[38;2;255;128;0mY\x1b[0m\n");
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
     CHECK(line[0].text == "Y");
-    CHECK(line[0].fg == Color{});
-    CHECK(line[0].bg == Color{});
+    CHECK(line[0].fg == Color::rgb(255, 128, 0));
 }
 
-TEST_CASE("256-color background is consumed and ignored") {
+TEST_CASE("256-color background sets a Palette256 background") {
     AnsiParser p;
-    p.feed("\x1b[48;5;40mZ\n");
+    p.feed("\x1b[48;5;21mZ\n");
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
-    CHECK(line[0].bg == Color{});
+    CHECK(line[0].bg == Color::palette256(21));
 }
 
 TEST_CASE("AnsiParser caps retained scrollback to max_lines") {
@@ -155,12 +154,12 @@ TEST_CASE("AnsiParser caps retained scrollback to max_lines") {
 
 TEST_CASE("a style code after a consumed 256-color payload still applies") {
     AnsiParser p;
-    p.feed("\x1b[38;5;1;1mX\n");   // 38;5;1 consumed+ignored; trailing 1 = bold
+    p.feed("\x1b[38;5;1;1mX\n");   // 38;5;1 sets fg; trailing 1 = bold
     const StyledLine& line = p.lines()[0];
     REQUIRE(line.size() == 1);
     CHECK(line[0].text == "X");
-    CHECK(line[0].fg == Color{});   // 256-color did not leak (this task)
-    CHECK(line[0].bold == true);    // the code after the payload applied
+    CHECK(line[0].fg == Color::palette256(1));
+    CHECK(line[0].bold == true);
 }
 
 TEST_CASE("unknown extended color mode is consumed without leaking") {
@@ -170,4 +169,34 @@ TEST_CASE("unknown extended color mode is consumed without leaking") {
     REQUIRE(line.size() == 1);
     CHECK(line[0].text == "X");
     CHECK(line[0].fg == Color{});
+}
+
+TEST_CASE("truncated 38;5 (missing index) applies no color") {
+    AnsiParser p;
+    p.feed("\x1b[38;5mX\n");
+    CHECK(p.lines()[0][0].fg == Color{});
+}
+
+TEST_CASE("bare 38 (missing mode) applies no color") {
+    AnsiParser p;
+    p.feed("\x1b[38mX\n");
+    CHECK(p.lines()[0][0].fg == Color{});
+}
+
+TEST_CASE("out-of-range 256 index applies no color") {
+    AnsiParser p;
+    p.feed("\x1b[38;5;300mX\n");   // 300 > 255
+    CHECK(p.lines()[0][0].fg == Color{});
+}
+
+TEST_CASE("short RGB (fewer than three components) applies no color") {
+    AnsiParser p;
+    p.feed("\x1b[38;2;1;2mX\n");
+    CHECK(p.lines()[0][0].fg == Color{});
+}
+
+TEST_CASE("out-of-range RGB components are clamped to 0..255") {
+    AnsiParser p;
+    p.feed("\x1b[38;2;999;0;0mX\n");
+    CHECK(p.lines()[0][0].fg == Color::rgb(255, 0, 0));
 }
