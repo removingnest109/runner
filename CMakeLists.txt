@@ -29,6 +29,7 @@ add_library(runner_lib STATIC
   src/config.cpp
   src/ansi_parser.cpp
   src/process_runner.cpp
+  src/cli.cpp
 )
 target_include_directories(runner_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(runner_lib PUBLIC tomlplusplus::tomlplusplus Threads::Threads)
@@ -42,6 +43,7 @@ add_executable(runner_tests
   tests/test_config_load.cpp
   tests/test_ansi_parser.cpp
   tests/test_process_runner.cpp
+  tests/test_cli.cpp
 )
 target_link_libraries(runner_tests PRIVATE runner_lib doctest::doctest)
 
