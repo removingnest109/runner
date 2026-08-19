@@ -56,6 +56,12 @@ cmd   = 'mkdir -p "$HOME/void-packages/srcpkgs/runner" && cp packaging/void/temp
 desc  = "Sync the template into ~/void-packages and build the .xbps (runs tests)"
 group = "Packaging"
 
+[[action]]
+label = "Void: install built package"
+cmd   = 'sudo xbps-install -R "$HOME/void-packages/hostdir/binpkgs" -y runner && runner --version'
+desc  = "Install/upgrade runner from the locally built .xbps (needs passwordless sudo); run after Build Void package"
+group = "Packaging"
+
 # --- AUR (Arch) ------------------------------------------------------------
 # Needs: makepkg + the AUR ftxui dep installed (see packaging/aur/README.md).
 [[action]]
