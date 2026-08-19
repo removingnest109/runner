@@ -22,13 +22,12 @@ The Nix packaging is two files:
   - `doctest` is a `nativeCheckInput` used only to compile and run the test
     suite. The test target is gated on `doCheck` via `cmakeFlags`, so doctest
     **never enters the runtime closure**.
-- **nixpkgs pin**: `flake.nix` pins `nixpkgs` to **`nixos-24.11`**, whose
-  `ftxui` (5.0.0), `tomlplusplus` (3.4.0) and `doctest` (2.4.11) exactly match
-  what the project's `find_package` calls request. `runner` requires the FTXUI
-  5.x API — it does not build against FTXUI 7.x — and `find_package(ftxui 5.0.0)`
-  uses `SameMajorVersion` matching, so newer channels (whose `ftxui` is 6.x/7.x)
-  are not used until either FTXUI is unpinned upstream or the channel again
-  carries ftxui 5.
+- **nixpkgs pin**: `flake.nix` pins `nixpkgs` to **`nixos-25.05`**, whose
+  `ftxui` (6.x, 6.1.9), `tomlplusplus` (3.4.0) and `doctest` (2.4.11) satisfy the
+  project's `find_package` calls. `runner` requires the FTXUI **6.0+** API (text
+  selection) and builds against both 6.x and 7.x — its CMake queries
+  `find_package(ftxui)` unversioned with a 6.0 floor — so any channel whose
+  `ftxui` is >= 6 works.
 - **Tests run in `checkPhase`** (`doCheck = true`) via CMake/CTest.
 - **CMake FetchContent is never triggered**: with all three deps present,
   `find_package` succeeds for each, so the sandboxed (network-free) Nix build
@@ -57,12 +56,12 @@ This repo does not commit a `flake.lock` (it cannot be generated without Nix
 present). Generate and commit one to pin the exact nixpkgs revision:
 
 ```sh
-nix flake lock          # writes flake.lock pinning nixos-24.11's current commit
+nix flake lock          # writes flake.lock pinning nixos-25.05's current commit
 git add flake.lock
 ```
 
-Without a committed lock, `nix run github:…` resolves `nixos-24.11` to its tip at
-run time, which still yields ftxui 5.0.0 / tomlplusplus 3.4.0 / doctest 2.4.11.
+Without a committed lock, `nix run github:…` resolves `nixos-25.05` to its tip at
+run time, which still yields ftxui 6.x / tomlplusplus 3.4.0 / doctest 2.4.11.
 
 ## Toward nixpkgs submission
 
@@ -74,7 +73,6 @@ run time, which still yields ftxui 5.0.0 / tomlplusplus 3.4.0 / doctest 2.4.11.
    (or `nix flake prefetch`), and drop the `lib.fakeHash`.
 3. `nix-build -A runner` and `nix run nixpkgs#nixpkgs-review` as usual.
 
-Note: nixpkgs' current `ftxui` is 6.x/7.x. Landing there will require the
-upstream project to support that FTXUI major (a CMake/API change), which is
-intentionally **not** done here — this packaging targets the released 5.x-based
-`v0.1.0`.
+Note: `runner` builds against nixpkgs' current `ftxui` (6.x/7.x) directly — the
+`find_package(ftxui)` call is unversioned with a 6.0 floor, so no channel-specific
+pin is needed for a nixpkgs submission.

@@ -18,6 +18,35 @@ searches upward from the current directory for
 .B runner.toml
 and opens the interactive UI. Exactly one action runs at a time; an action's
 working directory is resolved relative to the config file.
+.SH KEYS
+.TP
+.BR \(ua / \(da ", " k / j
+Select the previous/next action.
+.TP
+.B Enter
+Run the selected action.
+.TP
+.BR PgUp / PgDn ", " End ", mouse wheel"
+Scroll the output pane.
+.TP
+.B mouse drag
+Select text in the output pane.
+.TP
+.B y
+Copy the current selection to the clipboard.
+.TP
+.B Ctrl+Y
+Copy the full output of the last command to the clipboard.
+.TP
+.B Ctrl+C
+Kill the running child process.
+.TP
+.B Ctrl+D
+Quit.
+.PP
+Clipboard copy uses an OSC 52 terminal escape (works over SSH/tmux) and, when
+available, an external tool
+.RB ( wl\-copy ", " xclip / xsel ", or " pbcopy ).
 .SH OPTIONS
 .TP
 .BR \-c ", " \-\-config " " \fIPATH\fR

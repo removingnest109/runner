@@ -35,12 +35,20 @@ endif()
 # FETCHCONTENT_FULLY_DISCONNECTED so this uses a vendored local tree, no network.
 # FTXUI is statically linked into runner, so suppress its own install rules
 # (headers/libs/cmake config) to keep our install tree to just the runner binary.
-find_package(ftxui 5.0.0 QUIET)
-if(NOT ftxui_FOUND)
+# runner needs the FTXUI 6.0 selection API (screen.GetSelection()). It builds
+# against both 6.x and 7.x, so we can't pin a single major with find_package's
+# SameMajorVersion rule — query unversioned and enforce a 6.0 floor by hand.
+find_package(ftxui QUIET)
+if(ftxui_FOUND)
+  if(ftxui_VERSION VERSION_LESS 6.0.0)
+    message(FATAL_ERROR
+      "runner requires FTXUI >= 6.0.0 (text selection API); found ${ftxui_VERSION}")
+  endif()
+else()
   set(FTXUI_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(ftxui
     GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI.git
-    GIT_TAG v5.0.0)
+    GIT_TAG v6.1.9)
   FetchContent_MakeAvailable(ftxui)
 endif()
 
@@ -56,6 +64,7 @@ add_library(runner_lib STATIC
   src/ansi_parser.cpp
   src/process_runner.cpp
   src/cli.cpp
+  src/clipboard.cpp
   src/app.cpp
 )
 target_include_directories(runner_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -83,6 +92,7 @@ if(RUNNER_BUILD_TESTS)
     tests/test_config_load.cpp
     tests/test_ansi_parser.cpp
     tests/test_process_runner.cpp
+    tests/test_clipboard.cpp
     tests/test_cli.cpp
   )
   target_link_libraries(runner_tests PRIVATE runner_lib doctest::doctest)

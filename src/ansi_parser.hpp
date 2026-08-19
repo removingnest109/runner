@@ -38,6 +38,9 @@ public:
     void feed(const std::string& bytes);
     const std::deque<StyledLine>& lines() const { return lines_; }
     StyledLine pending_line() const;
+    // All buffered output as plain text (styling stripped): each completed line
+    // followed by '\n', then the in-progress line (no trailing newline).
+    std::string plain_text() const;
     void clear();
 
 private:

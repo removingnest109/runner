@@ -11,7 +11,7 @@ version control; to build a package you copy it into a
   `runner.toml.example`). `vlicense` installs the MIT `LICENSE`.
 - **tomlplusplus** and **doctest** come from Void's `tomlplusplus-devel` and
   `doctest-devel` (exact pinned versions), resolved by CMake's `find_package`.
-- **FTXUI** is *not* in Void, so its v5.0.0 release tarball is a second
+- **FTXUI** is *not* in Void, so its v6.1.9 release tarball is a second
   `distfiles` entry. `create_wrksrc` extracts both tarballs as siblings;
   `FETCHCONTENT_SOURCE_DIR_FTXUI` + `FETCHCONTENT_FULLY_DISCONNECTED=ON` make
   FetchContent build FTXUI from that local tree with **no network**, and it is
@@ -46,7 +46,7 @@ Verify: `runner --version` prints `runner 0.1.0`; `man 1 runner` shows the page.
 
 ## Notes
 
-- The template pins FTXUI to v5.0.0 to match the repo's `FetchContent` tag; bump
+- The template pins FTXUI to v6.1.9 to match the repo's `FetchContent` tag; bump
   both together.
 - If FTXUI is ever packaged in Void, drop the second distfile and the two
   `FETCHCONTENT_*` args and add `ftxui-devel` to `makedepends` — the CMake

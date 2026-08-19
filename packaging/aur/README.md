@@ -11,13 +11,12 @@ contains only these two files.
   upstream release used by the Void, Debian, and Nix packaging. `sha256sums`
   pins it.
 - **FTXUI**: FTXUI is not in the official Arch repositories. `runner` requires
-  the FTXUI **5.x** API (it does not compile against FTXUI 7.x, which the main
-  AUR `ftxui` package now ships), and `find_package(ftxui 5.0.0)` uses
-  `SameMajorVersion` matching. The AUR [`ftxui5`][ftxui5] package provides
-  exactly 5.0.0. It installs under `/usr/include/ftxui5` and `/usr/lib/ftxui5`,
-  so the build passes `-Dftxui_DIR=/usr/lib/ftxui5/cmake/ftxui` to locate it.
-  `ftxui5` ships **static** libraries, so it is a `makedepends` (build-only) and
-  the runner binary does not gain a runtime shared-library dependency on it.
+  the FTXUI **6.0+** API (text selection) and builds against both 6.x and 7.x.
+  The main AUR [`ftxui`][ftxui] package (currently 7.x) installs its CMake config
+  at the standard `/usr/lib/cmake/ftxui`, which `find_package(ftxui)` locates with
+  no extra hints. `ftxui` ships **static** libraries, so it is a `makedepends`
+  (build-only) and the runner binary does not gain a runtime shared-library
+  dependency on it.
 - **tomlplusplus** / **doctest**: from the official `extra` packages
   `tomlplusplus` (3.4.0) and `doctest` (>= 2.4.11), resolved by CMake's
   `find_package`. tomlplusplus is header-only and doctest is only used by the
@@ -33,8 +32,8 @@ contains only these two files.
 ## Build and install locally
 
 ```sh
-# 1. Install the FTXUI 5.x dependency from the AUR (any AUR helper works):
-yay -S ftxui5            # or: paru -S ftxui5, or makepkg it by hand
+# 1. Install the FTXUI dependency from the AUR (any AUR helper works):
+yay -S ftxui             # or: paru -S ftxui, or makepkg it by hand
 
 # 2. Build and install runner from this directory:
 cd packaging/aur
@@ -42,7 +41,7 @@ makepkg -si              # builds (running the test suite) and installs
 ```
 
 `makepkg -si` pulls `tomlplusplus`/`doctest`/`cmake` from the official repos
-automatically; `ftxui5` must come from the AUR (step 1), because makepkg itself
+automatically; `ftxui` must come from the AUR (step 1), because makepkg itself
 does not resolve AUR dependencies.
 
 ## Publish to the AUR
@@ -71,4 +70,4 @@ git push
 4. Rebuild/validate: `makepkg -f` and `namcap PKGBUILD runner-*.pkg.tar.zst`.
 5. Commit and push both files to the AUR repo.
 
-[ftxui5]: https://aur.archlinux.org/packages/ftxui5
+[ftxui]: https://aur.archlinux.org/packages/ftxui

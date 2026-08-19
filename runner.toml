@@ -36,7 +36,7 @@ desc  = "Sync the template into ~/void-packages and build the .xbps (runs tests)
 group = "Packaging"
 
 # --- AUR (Arch) ------------------------------------------------------------
-# Needs: makepkg + the AUR ftxui5 dep installed (see packaging/aur/README.md).
+# Needs: makepkg + the AUR ftxui dep installed (see packaging/aur/README.md).
 [[action]]
 label = "AUR: build package"
 cmd   = "makepkg -f"
@@ -79,8 +79,8 @@ desc  = "Pin nixpkgs by generating flake.lock"
 group = "Packaging"
 
 # --- Debian / Ubuntu -------------------------------------------------------
-# Needs: a Debian 13+/Ubuntu 25.04+ host with build-essential, debhelper,
-# libftxui-dev, libtomlplusplus-dev, doctest-dev (see packaging/debian/README.md).
+# Needs: a Debian 14+/Ubuntu (libftxui-dev >= 6) host with build-essential,
+# debhelper, libftxui-dev, libtomlplusplus-dev, doctest-dev (see packaging/debian/README.md).
 [[action]]
 label = "Debian: build .deb"
 cmd   = "WORK=\"$PWD/dist/deb\" packaging/debian/build.sh"
@@ -98,3 +98,19 @@ label = "Debian: inspect .deb"
 cmd   = "deb=$(ls -t dist/deb/runner_*_*.deb 2>/dev/null | head -1); [ -n \"$deb\" ] && { dpkg-deb --info \"$deb\"; echo '--- Depends ---'; dpkg-deb -f \"$deb\" Depends; echo '--- contents ---'; dpkg-deb --contents \"$deb\"; } || echo 'no .deb in dist/deb — build it first'"
 desc  = "Show metadata, runtime Depends, and file list of the built .deb"
 group = "Packaging"
+
+# --- Homebrew --------------------------------------------------------------
+# Needs: brew with the ftxui/tomlplusplus formulae available (see packaging/homebrew/README.md).
+[[action]]
+label = "Homebrew: build formula"
+cmd   = "brew install --build-from-source ./runner.rb && runner --version"
+desc  = "Build+install the formula from source against Homebrew's ftxui"
+group = "Packaging"
+cwd   = "packaging/homebrew"
+
+[[action]]
+label = "Homebrew: audit formula"
+cmd   = "brew audit --strict --formula ./runner.rb && echo 'audit OK'"
+desc  = "Lint the Homebrew formula with brew audit"
+group = "Packaging"
+cwd   = "packaging/homebrew"

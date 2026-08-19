@@ -1,13 +1,12 @@
 {
   description = "runner — a TUI project script runner";
 
-  # Pinned to nixos-24.11: that channel ships the exact dependency versions the
-  # project's CMake asks for — ftxui 5.0.0, tomlplusplus 3.4.0, doctest 2.4.11.
-  # runner needs the FTXUI 5.x API (it does not build against 7.x) and
-  # find_package(ftxui 5.0.0) uses SameMajorVersion matching, so a channel whose
-  # ftxui has moved to 6.x/7.x would not satisfy it without a code change. Run
-  # `nix flake update` only when bumping to a channel that still carries ftxui 5.
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+  # Pinned to nixos-25.05: that channel ships ftxui 6.x (6.1.9), tomlplusplus
+  # 3.4.0, and doctest 2.4.11. runner needs the FTXUI 6.0+ selection API and
+  # builds against both 6.x and 7.x (its CMake queries find_package(ftxui)
+  # unversioned with a 6.0 floor), so any channel carrying ftxui >= 6 works. Run
+  # `nix flake update` only when bumping to a channel that still carries ftxui >= 6.
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
 
   outputs =
     { self, nixpkgs }:

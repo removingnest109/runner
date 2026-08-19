@@ -200,3 +200,20 @@ TEST_CASE("out-of-range RGB components are clamped to 0..255") {
     p.feed("\x1b[38;2;999;0;0mX\n");
     CHECK(p.lines()[0][0].fg == Color::rgb(255, 0, 0));
 }
+
+TEST_CASE("plain_text strips styling and joins completed lines with newlines") {
+    AnsiParser p;
+    p.feed("\x1b[31mred\x1b[0m line\nsecond\n");
+    CHECK(p.plain_text() == "red line\nsecond\n");
+}
+
+TEST_CASE("plain_text includes the in-progress (unterminated) line") {
+    AnsiParser p;
+    p.feed("done\npartial");   // no trailing newline on 'partial'
+    CHECK(p.plain_text() == "done\npartial");
+}
+
+TEST_CASE("plain_text on an empty parser is empty") {
+    AnsiParser p;
+    CHECK(p.plain_text().empty());
+}

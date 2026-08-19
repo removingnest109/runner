@@ -6,14 +6,15 @@ pkgdesc="TUI project script runner"
 arch=('x86_64')
 url="https://github.com/removingnest109/runner"
 license=('MIT')
-# FTXUI is not in the official repos; the code requires the 5.x API (it does not
-# compile against FTXUI 7.x), and find_package(ftxui 5.0.0) uses SameMajorVersion
-# matching, so the AUR ftxui5 package (installed under /usr/{include,lib}/ftxui5)
-# is the correct provider. It ships static libs, so it is a build-only dep.
-# tomlplusplus is header-only and doctest is used only by the test suite, so both
-# are makedepends. gcc-libs (libstdc++) is the only shared-library runtime dep.
+# FTXUI is not in the official repos; the code requires the 6.0+ API (text
+# selection) and builds against both 6.x and 7.x. The main AUR ftxui package
+# (currently 7.x) installs its CMake config at the standard /usr/lib/cmake/ftxui,
+# which find_package(ftxui) locates with no extra hints. It ships static libs, so
+# it is a build-only dep. tomlplusplus is header-only and doctest is used only by
+# the test suite, so both are makedepends. gcc-libs (libstdc++) is the only
+# shared-library runtime dep.
 depends=('gcc-libs')
-makedepends=('cmake' 'ftxui5' 'tomlplusplus' 'doctest')
+makedepends=('cmake' 'ftxui' 'tomlplusplus' 'doctest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('d41d83813c5726c09a6bb738ddd0b7aaee0a6f7215fc58140e28668b885df99e')
 
@@ -23,7 +24,6 @@ build() {
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DRUNNER_BUILD_TESTS=ON \
-    -Dftxui_DIR=/usr/lib/ftxui5/cmake/ftxui \
     -Wno-dev
   cmake --build build
 }

@@ -5,8 +5,8 @@ Maintainer: Ethan Saenger <ethan@saenger5.com>
 Build-Depends:
  debhelper-compat (= 13),
  cmake (>= 3.20),
- libftxui-dev (>= 5.0.0),
- libftxui-dev (<< 6),
+ libftxui-dev (>= 6.0.0),
+ libftxui-dev (<< 8),
  libtomlplusplus-dev (>= 3.4.0),
  doctest-dev (>= 2.4.11)
 Standards-Version: 4.7.0

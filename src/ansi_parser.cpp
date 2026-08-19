@@ -116,6 +116,16 @@ StyledLine AnsiParser::pending_line() const {
     return line;
 }
 
+std::string AnsiParser::plain_text() const {
+    std::string out;
+    for (const auto& line : lines_) {
+        for (const auto& span : line) out += span.text;
+        out += '\n';
+    }
+    for (const auto& span : pending_line()) out += span.text;
+    return out;
+}
+
 void AnsiParser::clear() {
     lines_.clear();
     cur_line_.clear();

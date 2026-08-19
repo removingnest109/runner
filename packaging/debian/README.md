@@ -11,7 +11,7 @@ time (the classic non-native model, `3.0 (quilt)`).
 
 | Dependency        | Debian package        | Role in the `.deb`                    |
 |-------------------|-----------------------|---------------------------------------|
-| FTXUI 5.x         | `libftxui-dev`        | **Runtime** — the binary dynamically links `libftxui-{component,dom,screen}5.0.0`; `${shlibs:Depends}` adds them automatically. |
+| FTXUI 6.x / 7.x   | `libftxui-dev`        | **Runtime** — the binary dynamically links `libftxui-{component,dom,screen}`; `${shlibs:Depends}` adds them automatically. |
 | toml++ 3.4.0      | `libtomlplusplus-dev` | **Build only** — header-only, not linked. |
 | doctest 2.4.11    | `doctest-dev`         | **Build/test only** — compiles the doctest suite run during the build; not linked into `runner`. |
 
@@ -20,15 +20,14 @@ never triggered — the build needs no network and downloads no FTXUI/toml++/doc
 
 ## Minimum distro versions (important)
 
-The project needs the FTXUI **5.x** API (it does not build against FTXUI 7.x),
-and `find_package(ftxui 5.0.0)` uses `SameMajorVersion` matching. `libftxui-dev`
-must therefore be **5.x** — the build-deps require `>= 5.0.0` and `<< 6`:
+The project needs the FTXUI **6.0+** API (text selection) and builds against both
+6.x and 7.x. `libftxui-dev` must therefore be **>= 6.0.0 and << 8**:
 
-- **Debian 13 "trixie"** — `libftxui-dev` 5.0.0 ✓  (Debian 12 "bookworm" has no FTXUI → not supported)
-- **Ubuntu 25.04 "plucky", 25.10 "questing", 26.04 "resolute"** — `libftxui-dev` 5.0.0 ✓
-- Newer releases whose `libftxui-dev` has moved to 6.x/7.x (Debian 14 "forky"/sid,
-  Ubuntu 26.10 "stonking") do **not** satisfy the build-dep until upstream
-  supports that FTXUI major.
+- **Debian 14 "forky" / sid** — `libftxui-dev` 6.x ✓  (Debian 13 "trixie" ships
+  5.0.0 → no longer supported; Debian 12 "bookworm" has no FTXUI)
+- **Ubuntu** — any release whose `libftxui-dev` is **>= 6** ✓. Earlier, 5.x-based
+  releases (25.04 "plucky" through 26.04 "resolute") are no longer supported by
+  this packaging.
 
 `libtomlplusplus-dev` (3.4.0) and `doctest-dev` (>= 2.4.11) are present on all of
 the above.
@@ -36,7 +35,7 @@ the above.
 ## Build the .deb
 
 ```sh
-# 1. Install the build dependencies (Debian 13+ / Ubuntu 25.04+):
+# 1. Install the build dependencies (Debian 14+ / Ubuntu with libftxui-dev >= 6):
 sudo apt install build-essential debhelper cmake curl \
      libftxui-dev libtomlplusplus-dev doctest-dev
 

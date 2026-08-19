@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "ansi_parser.hpp"
+#include "clipboard.hpp"
 #include "process_runner.hpp"
 
 #include <ftxui/component/component.hpp>
@@ -13,7 +14,32 @@
 #include <termios.h>
 #include <unistd.h>
 
-using namespace ftxui;
+// Targeted using-declarations rather than `using namespace ftxui`: FTXUI 7
+// introduces ftxui::App, which would collide with this project's ::App class
+// under a blanket directive. Colors are still qualified as ftxui::Color in
+// to_ftxui() below (::Color is our own type).
+using ftxui::CatchEvent;
+using ftxui::Element;
+using ftxui::Elements;
+using ftxui::Event;
+using ftxui::Mouse;
+using ftxui::Renderer;
+using ftxui::ScreenInteractive;
+using ftxui::bgcolor;
+using ftxui::bold;
+using ftxui::color;
+using ftxui::EQUAL;
+using ftxui::flex;
+using ftxui::focus;
+using ftxui::frame;
+using ftxui::hbox;
+using ftxui::inverted;
+using ftxui::separator;
+using ftxui::size;
+using ftxui::text;
+using ftxui::vbox;
+using ftxui::WIDTH;
+using ftxui::yframe;
 
 namespace {
 
@@ -115,6 +141,13 @@ App::App(std::vector<Action> actions) : actions_(std::move(actions)) {}
 void App::run() {
     auto screen = ScreenInteractive::Fullscreen();
 
+    // FTXUI 6+ runs its own Ctrl-C / Ctrl-Z handlers by default even when a
+    // component catches the event (see screen_interactive.hpp). That would quit
+    // the app on Ctrl-C, overriding our "Ctrl+C kills the running child" below.
+    // Force FTXUI to leave these to our CatchEvent handler.
+    screen.ForceHandleCtrlC(false);
+    screen.ForceHandleCtrlZ(false);
+
     // FTXUI v5.0.0's raw-mode setup (ScreenInteractive::Install) clears
     // ICANON/ECHO but leaves ISIG enabled, and installs its own SIGINT
     // handler that treats Ctrl+C as "quit the whole app" (see
@@ -143,11 +176,14 @@ void App::run() {
     int selected = 0;          // index into model.ordered
     bool follow = true;        // auto-scroll output to bottom
     int scroll_line = 0;       // used when not following
+    int total_lines = 0;       // output line count from the last render (for wheel)
+    std::string copied_msg;    // transient status feedback after a copy
 
     // FTXUI v5.0.0's Event has no named Event::CtrlC/Event::CtrlD constants;
     // per ftxui/component/event.cpp these map to raw control bytes 3 and 4.
     const Event ctrl_c = Event::Special(std::string(1, static_cast<char>(3)));
     const Event ctrl_d = Event::Special(std::string(1, static_cast<char>(4)));
+    const Event ctrl_y = Event::Special(std::string(1, static_cast<char>(25)));
 
     auto sidebar = Renderer([&] {
         Elements rows;
@@ -178,6 +214,7 @@ void App::run() {
         if (!pend.empty()) lines.push_back(line_to_element(pend));
 
         int total = static_cast<int>(lines.size());
+        total_lines = total;  // published for the mouse-wheel handler
         if (follow && total > 0) {
             lines.push_back(text("") | focus);  // pin view to bottom
         } else if (total > 0) {
@@ -187,12 +224,13 @@ void App::run() {
         return vbox(std::move(lines)) | yframe | flex;
     });
 
-    auto layout = Container::Horizontal({sidebar, output});
+    auto layout = ftxui::Container::Horizontal({sidebar, output});
 
     auto renderer = Renderer(layout, [&] {
         std::string status =
             state_label(runner.state(), runner.exit_code()) +
-            "   ↑↓ select · Enter run · Ctrl+C kill · Ctrl+D quit";
+            "   ↑↓ select · Enter run · Ctrl+C kill · Ctrl+D quit · y copy · ^Y copy all";
+        if (!copied_msg.empty()) status += "   [" + copied_msg + "]";
 
         std::string desc = model.ordered.empty() ? "" : model.ordered[selected].desc;
 
@@ -213,6 +251,30 @@ void App::run() {
 
     auto with_keys = CatchEvent(renderer, [&](Event e) {
         if (e == Event::Custom) return false;  // just triggers a redraw
+        copied_msg.clear();                    // any real event dismisses feedback
+
+        // Copy the current mouse selection (drag to select first).
+        if (e == Event::Character('y')) {
+            std::string sel = screen.GetSelection();
+            if (sel.empty()) {
+                copied_msg = "nothing selected";
+            } else {
+                copy_to_clipboard(sel);
+                copied_msg = "copied " + std::to_string(sel.size()) + " chars";
+            }
+            return true;
+        }
+        // Copy the full output of the last command.
+        if (e == ctrl_y) {
+            std::string out = parser.plain_text();
+            if (out.empty()) {
+                copied_msg = "no output to copy";
+            } else {
+                copy_to_clipboard(out);
+                copied_msg = "copied output (" + std::to_string(out.size()) + " chars)";
+            }
+            return true;
+        }
 
         if (e == Event::ArrowDown || e == Event::Character('j')) {
             if (!model.ordered.empty())
@@ -242,6 +304,22 @@ void App::run() {
         if (e == Event::PageUp)   { follow = false; scroll_line = std::max(scroll_line - 10, 0); return true; }
         if (e == Event::PageDown) { scroll_line += 10; follow = true; return true; }
         if (e == Event::End)      { follow = true; return true; }
+
+        // Mouse wheel scrolls the output. Press/drag/release fall through to
+        // FTXUI's built-in selection handler.
+        if (e.is_mouse()) {
+            if (e.mouse().button == Mouse::WheelUp) {
+                if (follow) { follow = false; scroll_line = std::max(total_lines - 1, 0); }
+                scroll_line = std::max(scroll_line - 3, 0);
+                return true;
+            }
+            if (e.mouse().button == Mouse::WheelDown) {
+                scroll_line += 3;
+                follow = (scroll_line >= total_lines - 1);
+                return true;
+            }
+            return false;
+        }
         return false;
     });
 
