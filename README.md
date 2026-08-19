@@ -46,7 +46,7 @@ Installs the `runner` binary, the `runner.1` man page, and
 ## Packages
 
 Packaging for five platforms lives under [`packaging/`](packaging/), all
-building the **same `v0.1.0` upstream release**. Each has its own README with
+building the **same upstream release**. Each has its own README with
 build/publish/install commands, and every step is also wired up as a
 `runner.toml` action in the **Packaging** group (so you can build a package from
 inside `runner` itself).
