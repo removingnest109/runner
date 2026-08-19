@@ -16,6 +16,27 @@ cmd   = "cmake -S . -B build"
 desc  = "Re-run CMake configure"
 group = "Dev"
 
+# --- Release ---------------------------------------------------------------
+# Phase A bumps the version everywhere, commits, and creates a LOCAL tag. Push
+# the tag yourself (git push origin vX.Y.Z), then run the checksum refresh.
+[[action]]
+label = "Release: bump major (X.Y.Z→X.Y+1.0)"
+cmd   = "scripts/bump-version.sh major"
+desc  = "Bump the middle version number, update all packaging files, commit + local tag"
+group = "Release"
+
+[[action]]
+label = "Release: bump minor (X.Y.Z→X.Y.Z+1)"
+cmd   = "scripts/bump-version.sh minor"
+desc  = "Bump the last version number, update all packaging files, commit + local tag"
+group = "Release"
+
+[[action]]
+label = "Release: refresh checksums"
+cmd   = "scripts/refresh-checksums.sh"
+desc  = "After pushing the tag: fetch the release tarball, update AUR/Void/Homebrew/Nix checksums, commit"
+group = "Release"
+
 [[action]]
 label = "Truecolor demo"
 cmd   = "printf '\\033[38;2;255;128;0mtruecolor orange\\033[0m \\033[38;5;39m256-blue\\033[0m\\n'"
