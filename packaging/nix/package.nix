@@ -14,7 +14,7 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "runner";
-  version = "0.1.0";
+  version = "0.1.1";
 
   # The flake overrides this with `self` (the checked-out tree). For a nixpkgs
   # submission, this fetchFromGitHub is the canonical source; replace the hash

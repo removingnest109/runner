@@ -1,6 +1,6 @@
 # Maintainer: Ethan Saenger <ethan@saenger5.com>
 pkgname=runner
-pkgver=0.1.0
+pkgver=0.1.1
 pkgrel=1
 pkgdesc="TUI project script runner"
 arch=('x86_64')

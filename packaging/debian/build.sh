@@ -13,7 +13,7 @@
 #   WORK=/path/to/dir packaging/debian/build.sh   # choose the work dir
 set -eu
 
-VERSION=0.1.0
+VERSION=0.1.1
 OWNER=removingnest109
 REPO=runner
 TAG="v${VERSION}"

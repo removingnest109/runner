@@ -1,6 +1,6 @@
 # Template file for 'runner'
 pkgname=runner
-version=0.1.0
+version=0.1.1
 revision=1
 build_style=cmake
 # FTXUI is not packaged in Void, so it is vendored as a second distfile and
