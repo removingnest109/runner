@@ -23,7 +23,7 @@ stdenv.mkDerivation (finalAttrs: {
     owner = "removingnest109";
     repo = "runner";
     tag = "v${finalAttrs.version}";
-    hash = lib.fakeHash;
+    hash = "sha256-utCUjPEQ+TIdgAOqlX2sG2wwExBU+iTREqgR6cFAlIc=";
   };
 
   nativeBuildInputs = [ cmake ];
