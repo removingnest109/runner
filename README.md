@@ -65,6 +65,20 @@ doctest is build/test-only in every case and never a runtime dependency. `runner
 requires the FTXUI **6.0+** API and builds against both 6.x and 7.x, so each
 package targets a FTXUI 6.x-or-newer provider.
 
+### Debian / Ubuntu
+
+A prebuilt `amd64` `.deb` is attached to every
+[release](https://github.com/removingnest109/runner/releases/latest). Download the
+`.deb` from the latest release and install it with `dpkg`:
+
+```sh
+sudo dpkg -i runner_*_amd64.deb
+```
+
+The package is built against **FTXUI 6+**, so it needs Debian 14 ("forky")/sid or
+an Ubuntu recent enough to ship `libftxui-dev >= 6`. If `dpkg` reports unmet
+dependencies, pull them in with `sudo apt-get install -f`.
+
 ### Void Linux
 
 A ready-to-use xbps-src template lives at [`packaging/void/template`](packaging/void/template).
