@@ -16,7 +16,7 @@ license=('MIT')
 depends=('gcc-libs')
 makedepends=('cmake' 'ftxui' 'tomlplusplus' 'doctest')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('d41d83813c5726c09a6bb738ddd0b7aaee0a6f7215fc58140e28668b885df99e')
+sha256sums=('47d6c87f70bc9a5e1db3ac05ff07bedb9151c8db9bcfa9070b819a4a12e9d076')
 
 build() {
   cmake -S "$pkgname-$pkgver" -B build \

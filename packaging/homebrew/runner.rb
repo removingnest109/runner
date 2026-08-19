@@ -2,7 +2,7 @@ class Runner < Formula
   desc "TUI project script runner"
   homepage "https://github.com/removingnest109/runner"
   url "https://github.com/removingnest109/runner/archive/refs/tags/v0.1.1.tar.gz"
-  sha256 "d41d83813c5726c09a6bb738ddd0b7aaee0a6f7215fc58140e28668b885df99e"
+  sha256 "47d6c87f70bc9a5e1db3ac05ff07bedb9151c8db9bcfa9070b819a4a12e9d076"
   license "MIT"
 
   # runner needs the FTXUI 6.0+ selection API and builds against 6.x and 7.x;
