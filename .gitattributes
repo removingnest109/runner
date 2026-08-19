@@ -3,4 +3,5 @@
 # not the project's own code, so mark them vendored to exclude them from stats.
 # https://github.com/github-linguist/linguist/blob/master/docs/overrides.md
 packaging/** linguist-vendored
+scripts/**   linguist-vendored
 flake.nix    linguist-vendored

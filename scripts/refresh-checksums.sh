@@ -60,8 +60,12 @@ nix_done=no
 if command -v nix-prefetch-url >/dev/null 2>&1; then
   echo ">> computing Nix SRI hash (nix-prefetch-url --unpack)"
   if b32=$(nix-prefetch-url --unpack --type sha256 "$url" 2>/dev/null) && [ -n "$b32" ]; then
-    if sri=$(nix hash to-sri --type sha256 "$b32" 2>/dev/null); then :;
-    elif sri=$(nix hash convert --hash-algo sha256 --to sri "$b32" 2>/dev/null); then :;
+    # `nix hash` needs the nix-command experimental feature; pass it explicitly
+    # so this works even where it isn't enabled in nix.conf (nix-prefetch-url
+    # above is a legacy command and needs no such flag).
+    nixhash="nix --extra-experimental-features nix-command hash"
+    if sri=$($nixhash to-sri --type sha256 "$b32" 2>/dev/null); then :;
+    elif sri=$($nixhash convert --hash-algo sha256 --to sri "$b32" 2>/dev/null); then :;
     else sri=""; fi
     if [ -n "$sri" ]; then
       sed -i "s|hash = .*;|hash = \"$sri\";|" packaging/nix/package.nix

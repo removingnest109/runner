@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
 # Build with debhelper's CMake buildsystem. debhelper compat 13 enables the
-# standard hardening build flags automatically.
+# standard hardening build flags automatically; +all also turns on "bindnow"
+# (full read-only GOT) to clear lintian's hardening-no-bindnow tag.
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
 %:
 	dh $@ --buildsystem=cmake
