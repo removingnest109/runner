@@ -229,7 +229,7 @@ void App::run() {
     auto renderer = Renderer(layout, [&] {
         std::string status =
             state_label(runner.state(), runner.exit_code()) +
-            "   ↑↓ select · Enter run · Ctrl+C kill · Ctrl+D quit · y copy · ^Y copy all";
+            "   ↑↓ select · Enter run · Ctrl+C kill · Ctrl+D quit · y copy · Ctrl+Y copy all";
         if (!copied_msg.empty()) status += "   [" + copied_msg + "]";
 
         std::string desc = model.ordered.empty() ? "" : model.ordered[selected].desc;
