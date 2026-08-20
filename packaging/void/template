@@ -15,7 +15,7 @@ license="MIT"
 homepage="https://github.com/removingnest109/runner"
 distfiles="https://github.com/removingnest109/runner/archive/refs/tags/v${version}.tar.gz
  https://github.com/ArthurSonzogni/FTXUI/archive/refs/tags/v6.1.9.tar.gz"
-checksum="47d6c87f70bc9a5e1db3ac05ff07bedb9151c8db9bcfa9070b819a4a12e9d076
+checksum="4fd73f6f0088be0d661c254165feb4dbcb5974eb97fa4f17e3b2d11806da9bc9
  45819c1e54914783d4a1ca5633885035d74146778a1f74e1213cdb7b76340e71"
 # Both tarballs extract as siblings under a shared wrksrc; build the runner one.
 create_wrksrc=yes
