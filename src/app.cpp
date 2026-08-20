@@ -335,7 +335,9 @@ void App::run() {
             // above. (The status line below shows the full label for context.)
             Element row = text(indent + (static_cast<int>(i) == selected ? "▶ " : "  ")
                                + rows[i].leaf);
-            if (static_cast<int>(i) == selected) row = row | inverted;
+            // `focus` lets the enclosing `frame` scroll to keep the selected
+            // row in view when it moves past the viewport edge.
+            if (static_cast<int>(i) == selected) row = row | inverted | focus;
             out.push_back(row);
         }
         return vbox(std::move(out)) | frame;
