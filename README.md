@@ -22,8 +22,8 @@ and install with `dpkg`:
 sudo dpkg -i runner_*_amd64.deb
 ```
 
-The package is built against **FTXUI 6+**, so it needs Debian 14 ("forky")/sid or
-an Ubuntu recent enough to ship `libftxui-dev >= 6`. If `dpkg` reports unmet
+The package is built against **FTXUI 6+**, so it needs Debian 14 or
+Ubuntu 26.10 or newer. If `dpkg` reports unmet
 dependencies, pull them in with `sudo apt-get install -f`. To build the `.deb`
 yourself, see [`packaging/debian/`](packaging/debian/).
 
