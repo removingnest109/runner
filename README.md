@@ -5,10 +5,19 @@ actions, shows them in an interactive terminal list, and runs the selected one
 in a child shell while streaming its output — including 256-color and truecolor
 ANSI — into a scrolling pane.
 
-Features: per-project action lists with groups, `${VAR}` expansion and per-action
-environment injection, action chaining (dependencies, composite sequences, and
-conditional skips), upward config search, a `--generate-config` starter, and
-mouse selection / clipboard copy of the output pane.
+## Features
+
+- **Per-project action lists** — commands live in a `runner.toml` that runner
+  finds by searching upward from the current directory.
+- **Nested groups** — an action's `label` is a `/`-separated path, so actions
+  organize into collapsible headings and subheadings.
+- **Action chaining** — declare prerequisites (`depends_on`), bundle steps into
+  composite `sequence`s, and gate work with conditional skips (`only_if_cmd`).
+- **Environment control** — per-action environment injection plus load-time
+  `${VAR}` expansion in `cwd` and `env`.
+- **Rich output pane** — streams merged stdout/stderr with full 256-color and
+  truecolor ANSI, mouse-drag text selection, and clipboard copy.
+- **Zero-setup start** — `--generate-config` writes a starter file to build from.
 
 ## Install
 
@@ -137,7 +146,44 @@ runner --help
 Copy uses OSC 52 (works over SSH/tmux; honored by e.g. alacritty) and, when
 available, an external clipboard tool (`wl-copy`, `xclip`/`xsel`, or `pbcopy`).
 
-### Groups
+## Configuration
+
+Actions live in a `runner.toml` — a TOML array of `[[action]]` tables at your
+project root. Run `runner --generate-config` to drop a starter file, then edit
+it. Every action needs a `label` and exactly one of `cmd` or `sequence`;
+everything else is optional. The subsections below cover each feature; see
+`man 1 runner` for the exhaustive schema.
+
+<details>
+<summary><strong>Writing actions</strong></summary>
+
+Each `[[action]]` is one entry in the list. The two required fields are `label`
+(what shows in the sidebar) and `cmd` (the command, run via `/bin/sh -c`):
+
+```toml
+[[action]]
+label = "Build"                 # sidebar name
+cmd   = "cmake --build build"   # run with /bin/sh -c — full POSIX sh: pipes, &&, globs
+desc  = "Compile the project"   # optional one-line description
+cwd   = "build"                 # optional working dir, relative to runner.toml
+```
+
+| Field  | Required | Meaning |
+|--------|----------|---------|
+| `label` | yes | Path-style name shown in the sidebar (see grouping below). |
+| `cmd`   | yes\* | Command line, run with `/bin/sh -c`. \*Omit only when `sequence` is set. |
+| `desc`  | no  | One-line description. |
+| `cwd`   | no  | Working directory; empty → the config file's directory, relative paths resolve against it, and it must exist. |
+| `env`   | no  | Per-action environment variables (see below). |
+
+`cmd` runs through a shell, so `cmd1 && cmd2`, pipes, redirection, and globbing
+all work. stdout and stderr are merged into the output pane with ANSI color
+rendered.
+
+</details>
+
+<details>
+<summary><strong>Grouping with path-style labels</strong></summary>
 
 An action's `label` is a **path**: the last `/`-segment is the name shown in the
 sidebar, and any earlier segments nest it under bold headings. A label with no
@@ -169,7 +215,39 @@ direct actions with subgroups (they order by first appearance). Because the
 group is part of the label, the **name only has to be unique within its group** —
 `Packaging/Debian/build` and `Packaging/Arch/build` happily coexist.
 
-### Chaining
+</details>
+
+<details>
+<summary><strong>Environment &amp; <code>${VAR}</code> expansion</strong></summary>
+
+Add per-action environment variables with an inline `env` table (values must be
+strings). They're injected on top of runner's inherited environment:
+
+```toml
+[[action]]
+label = "Run/staging"
+cmd   = "./server"
+env   = { APP_ENV = "staging", LOG_LEVEL = "debug" }
+```
+
+runner expands `${VAR}` in `cwd` and `env` values **at load time** from its own
+environment — an undefined variable is a load error:
+
+```toml
+[[action]]
+label = "Build/workspace"
+cmd   = "make"
+cwd   = "${HOME}/project/build"        # expanded by runner when the config loads
+env   = { CACHE = "${HOME}/.cache/x" }
+```
+
+Inside `cmd`, expansion is left to the shell at run time, so `$VAR` there sees
+the injected `env` plus full sh features (`${PATH%%:*}`, subshells, and so on).
+
+</details>
+
+<details>
+<summary><strong>Chaining: dependencies, composites &amp; conditional skips</strong></summary>
 
 Every action is addressed by its full label path, and can pull in others by that
 same path:
@@ -203,7 +281,7 @@ Add `hidden = true` to keep an action out of the menu while leaving it runnable
 as a `depends_on`/`sequence` member — handy for a composite's steps you never
 launch on their own.
 
-See `man 1 runner` for the full `runner.toml` schema.
+</details>
 
 ## Packaging
 
