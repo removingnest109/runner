@@ -1,3 +1,9 @@
+runner (0.2.0-1) unstable; urgency=medium
+
+  * Bump to 0.2.0.
+
+ -- Ethan Saenger <ethan@saenger5.com>  Thu, 20 Aug 2026 15:53:31 -0500
+
 runner (0.1.1-1) unstable; urgency=medium
 
   * Bump to 0.1.1.

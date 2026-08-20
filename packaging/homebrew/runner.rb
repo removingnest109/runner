@@ -1,7 +1,7 @@
 class Runner < Formula
   desc "TUI project script runner"
   homepage "https://github.com/removingnest109/runner"
-  url "https://github.com/removingnest109/runner/archive/refs/tags/v0.1.1.tar.gz"
+  url "https://github.com/removingnest109/runner/archive/refs/tags/v0.2.0.tar.gz"
   sha256 "47d6c87f70bc9a5e1db3ac05ff07bedb9151c8db9bcfa9070b819a4a12e9d076"
   license "MIT"
 

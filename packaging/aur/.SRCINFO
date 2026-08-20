@@ -1,6 +1,6 @@
 pkgbase = runner
 	pkgdesc = TUI project script runner
-	pkgver = 0.1.1
+	pkgver = 0.2.0
 	pkgrel = 1
 	url = https://github.com/removingnest109/runner
 	arch = x86_64
@@ -10,7 +10,7 @@ pkgbase = runner
 	makedepends = tomlplusplus
 	makedepends = doctest
 	depends = gcc-libs
-	source = runner-0.1.1.tar.gz::https://github.com/removingnest109/runner/archive/refs/tags/v0.1.1.tar.gz
+	source = runner-0.2.0.tar.gz::https://github.com/removingnest109/runner/archive/refs/tags/v0.2.0.tar.gz
 	sha256sums = 47d6c87f70bc9a5e1db3ac05ff07bedb9151c8db9bcfa9070b819a4a12e9d076
 
 pkgname = runner
