@@ -9,67 +9,13 @@ Features: per-project action lists with groups, `${VAR}` expansion and per-actio
 environment injection, upward config search, a `--generate-config` starter, and
 mouse selection / clipboard copy of the output pane.
 
-## Building from source
-
-Requires a C++20 compiler and CMake ≥ 3.20.
-
-```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-./build/runner --version
-```
-
-Dependencies are resolved **system-first, source-fallback**: if
-[FTXUI][ftxui] (>= 6.0.0; 6.x or 7.x), [tomlplusplus][toml] 3.4.0, and (for tests)
-[doctest][doctest] 2.4.11 are installed, CMake uses them via `find_package`;
-otherwise it fetches and builds them with `FetchContent` (needs network at
-configure time, FTXUI pinned to v6.1.9). Pass `-DRUNNER_BUILD_TESTS=OFF` to skip
-the test suite (and its doctest dependency).
-
-FTXUI **6.0+** is required for the output pane's text selection.
-
-Run the tests:
-
-```sh
-ctest --test-dir build --output-on-failure
-```
-
-## Installing
-
-```sh
-sudo cmake --install build --prefix /usr/local
-```
-
-Installs the `runner` binary, the `runner.1` man page, and
-`share/doc/runner/runner.toml.example`.
-
-## Packages
-
-Packaging for five platforms lives under [`packaging/`](packaging/), all
-building the **same upstream release**. Each has its own README with
-build/publish/install commands, and every step is also wired up as a
-`runner.toml` action in the **Packaging** group (so you can build a package from
-inside `runner` itself).
-
-| Distro | Files | FTXUI source | Notes |
-|--------|-------|--------------|-------|
-| **Arch (AUR)** | [`packaging/aur/`](packaging/aur/) — `PKGBUILD`, `.SRCINFO` | AUR [`ftxui`](https://aur.archlinux.org/packages/ftxui) (7.x, build-only) | `tomlplusplus`/`doctest` from `extra` |
-| **Homebrew** | [`packaging/homebrew/runner.rb`](packaging/homebrew/runner.rb) | `ftxui` formula (7.x) | `brew install --build-from-source ./runner.rb` |
-| **Nix** | [`flake.nix`](flake.nix) + [`packaging/nix/package.nix`](packaging/nix/package.nix) | nixpkgs `ftxui` (pinned `nixos-25.05` = 6.x) | `nix run github:removingnest109/runner` |
-| **Debian / Ubuntu** | [`packaging/debian/`](packaging/debian/) | `libftxui-dev` (6.x/7.x, runtime) | Debian 14+/Ubuntu with libftxui-dev >= 6 |
-| **Void** | [`packaging/void/template`](packaging/void/template) | FetchContent tarball (static, offline) | FTXUI v6.1.9 |
-
-The AUR, Homebrew, Nix, and Debian packages use their platform's **system** FTXUI
-and toml++ instead of CMake's `FetchContent` fallback (which needs network);
-doctest is build/test-only in every case and never a runtime dependency. `runner`
-requires the FTXUI **6.0+** API and builds against both 6.x and 7.x, so each
-package targets a FTXUI 6.x-or-newer provider.
+## Install
 
 ### Debian / Ubuntu
 
 A prebuilt `amd64` `.deb` is attached to every
-[release](https://github.com/removingnest109/runner/releases/latest). Download the
-`.deb` from the latest release and install it with `dpkg`:
+[release](https://github.com/removingnest109/runner/releases/latest). Download it
+and install with `dpkg`:
 
 ```sh
 sudo dpkg -i runner_*_amd64.deb
@@ -77,32 +23,40 @@ sudo dpkg -i runner_*_amd64.deb
 
 The package is built against **FTXUI 6+**, so it needs Debian 14 ("forky")/sid or
 an Ubuntu recent enough to ship `libftxui-dev >= 6`. If `dpkg` reports unmet
-dependencies, pull them in with `sudo apt-get install -f`.
+dependencies, pull them in with `sudo apt-get install -f`. To build the `.deb`
+yourself, see [`packaging/debian/`](packaging/debian/).
 
-### Void Linux
-
-A ready-to-use xbps-src template lives at [`packaging/void/template`](packaging/void/template).
-To build and install it locally:
-
-Setup void-packages if you have not already:
+### Arch (AUR)
 
 ```sh
-git clone --depth 1 https://github.com/void-linux/void-packages.git
-cd void-packages
-./xbps-src binary-bootstrap
+yay -S ftxui                       # FTXUI is not in the official repos
+cd packaging/aur && makepkg -si    # builds (runs tests) and installs
 ```
-Then copy the template from the repo, build and install:
+
+See [`packaging/aur/`](packaging/aur/) for details.
+
+### Homebrew
 
 ```sh
-mkdir -p srcpkgs/runner
-cp /path/to/runner/packaging/void/template srcpkgs/runner/template
-./xbps-src pkg runner
-sudo xbps-install -R hostdir/binpkgs runner
+brew install --build-from-source ./packaging/homebrew/runner.rb
 ```
 
-The template pulls FTXUI's release tarball as a second distfile and builds it
-offline (static-linked); tomlplusplus and doctest come from Void's
-`tomlplusplus-devel` / `doctest-devel`.
+See [`packaging/homebrew/`](packaging/homebrew/), which also covers publishing via
+a tap.
+
+### Nix
+
+```sh
+nix run github:removingnest109/runner        # run without installing
+```
+
+See [`packaging/nix/`](packaging/nix/) for installing into a profile or nixpkgs.
+
+### Void
+
+Build from the `xbps-src` template at
+[`packaging/void/`](packaging/void/) (FTXUI is statically linked from its release
+tarball, so the build is fully offline).
 
 ## Usage
 
@@ -130,6 +84,51 @@ Copy uses OSC 52 (works over SSH/tmux; honored by e.g. alacritty) and, when
 available, an external clipboard tool (`wl-copy`, `xclip`/`xsel`, or `pbcopy`).
 
 See `man 1 runner` for the full `runner.toml` schema.
+
+<details>
+<summary><strong>Building from source</strong></summary>
+
+Requires a C++20 compiler and CMake ≥ 3.20.
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/runner --version
+```
+
+Dependencies are resolved **system-first, source-fallback**: if
+[FTXUI][ftxui] (>= 6.0.0; 6.x or 7.x), [tomlplusplus][toml] 3.4.0, and (for tests)
+[doctest][doctest] 2.4.11 are installed, CMake uses them via `find_package`;
+otherwise it fetches and builds them with `FetchContent` (needs network at
+configure time, FTXUI pinned to v6.1.9). Pass `-DRUNNER_BUILD_TESTS=OFF` to skip
+the test suite (and its doctest dependency).
+
+FTXUI **6.0+** is required for the output pane's text selection.
+
+Run the tests:
+
+```sh
+ctest --test-dir build --output-on-failure
+```
+
+Install:
+
+```sh
+sudo cmake --install build --prefix /usr/local
+```
+
+Installs the `runner` binary, the `runner.1` man page, and
+`share/doc/runner/runner.toml.example`.
+
+</details>
+
+## Packaging
+
+Packaging for five platforms (Arch, Homebrew, Nix, Debian/Ubuntu, Void) lives
+under [`packaging/`](packaging/), all building the **same upstream release** and
+each wired up as a `runner.toml` action in the **Packaging** group. See
+[`packaging/README.md`](packaging/README.md) for the FTXUI-source matrix and
+per-platform maintainer notes.
 
 ## License
 
