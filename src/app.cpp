@@ -112,14 +112,19 @@ struct DisplayModel {
 
 DisplayModel build_display(const std::vector<Action>& actions) {
     DisplayModel m;
+    // Hidden actions stay resolvable as chain members but never appear in the
+    // menu, so they're excluded here (before grouping, so an all-hidden group
+    // gets no header either).
     std::vector<std::string> group_order;
     for (const auto& a : actions) {
+        if (a.hidden) continue;
         std::string g = a.group;  // "" allowed (Ungrouped)
         if (std::find(group_order.begin(), group_order.end(), g) == group_order.end())
             group_order.push_back(g);
     }
     for (const auto& g : group_order) {
         for (const auto& a : actions) {
+            if (a.hidden) continue;
             if (a.group == g) { m.ordered.push_back(a); m.group_of.push_back(g); }
         }
     }

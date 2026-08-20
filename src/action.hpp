@@ -28,5 +28,10 @@ struct Action {
     // means always run.
     std::string only_if_cmd;
 
+    // When true, the action is omitted from the menu but stays fully
+    // resolvable/runnable as a chain member (depends_on / sequence). Lets a
+    // composite's steps be referenced without cluttering the sidebar.
+    bool hidden = false;
+
     bool is_composite() const { return !sequence.empty(); }
 };

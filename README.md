@@ -165,6 +165,10 @@ that exits non-zero. `only_if_cmd` runs before an action in that action's
 references, and dependency cycles are load errors. Press `p` to preview the
 resolved plan before running it.
 
+Add `hidden = true` to keep an action out of the menu while leaving it runnable
+as a `depends_on`/`sequence` member — handy for a composite's steps you never
+launch on their own.
+
 See `man 1 runner` for the full `runner.toml` schema.
 
 ## Packaging

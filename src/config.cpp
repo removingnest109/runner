@@ -64,6 +64,7 @@ ParseResult parse_config(const std::string& toml_content) {
         a.cwd   = (*t)["cwd"].value_or(std::string{});
         a.group = (*t)["group"].value_or(std::string{});
         a.only_if_cmd = (*t)["only_if_cmd"].value_or(std::string{});
+        a.hidden = (*t)["hidden"].value_or(false);
         if (a.is_composite() && !a.only_if_cmd.empty())
             r.errors.push_back("action '" + a.label +
                 "': 'only_if_cmd' is not allowed on a composite (it owns no command "

@@ -196,6 +196,22 @@ depends_on = [42]
     CHECK_FALSE(r.errors.empty());
 }
 
+TEST_CASE("parse_config reads the hidden flag (default false)") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Visible"
+cmd = "v"
+[[action]]
+label = "Secret"
+cmd = "s"
+hidden = true
+)");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions.size() == 2);
+    CHECK_FALSE(r.actions[0].hidden);
+    CHECK(r.actions[1].hidden);
+}
+
 TEST_CASE("parse_config rejects duplicate labels") {
     ParseResult r = parse_config(R"(
 [[action]]

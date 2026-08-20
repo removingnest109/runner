@@ -112,6 +112,14 @@ and
 .B env
 before the action; a zero exit runs the action, a non-zero exit skips it
 (optional). Not allowed on a composite.
+.TP
+.B hidden
+Keep the action out of the menu while leaving it fully runnable as a
+.B depends_on
+or
+.B sequence
+member (optional; default false). Useful for a composite's steps that you
+never launch on their own.
 .PP
 Actions are addressed by their
 .B label
