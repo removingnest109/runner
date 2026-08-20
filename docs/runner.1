@@ -76,7 +76,19 @@ Actions are declared as an array of tables. Each
 supports:
 .TP
 .B label
-Short name shown in the list (required).
+Path-style unique key (required). The last \fB/\fR-segment is the name shown in
+the list; earlier segments nest the action under bold headings, to any depth:
+\fBlabel = "Packaging/Debian/build"\fR shows \fBbuild\fR under a \fBDebian\fR
+subheading inside \fBPackaging\fR. Segments are whitespace-trimmed; an empty
+segment (\fB"a//b"\fR, \fB"/b"\fR, \fB"a/"\fR) is an error. A label with no
+.B /
+is a top-level action, listed under
+.BR Ungrouped .
+The name need only be unique within its group, so
+.B Packaging/Arch/build
+and
+.B Packaging/Debian/build
+may coexist.
 .TP
 .B cmd
 Command run via \fB/bin/sh -c\fR (required unless
@@ -86,9 +98,6 @@ is set).
 .B desc
 One-line description (optional).
 .TP
-.B group
-Group heading the action is listed under (optional).
-.TP
 .B cwd
 Working directory, resolved relative to the config file (optional).
 .TP
@@ -96,11 +105,11 @@ Working directory, resolved relative to the config file (optional).
 Table of environment variables set for the action's child process (optional).
 .TP
 .B depends_on
-Array of action labels run \(em deduplicated, in order \(em before this action
-(optional).
+Array of full label paths run \(em deduplicated, in order \(em before this
+action (optional).
 .TP
 .B sequence
-Array of action labels making this a
+Array of full label paths making this a
 .IR composite :
 triggering it runs the listed actions in order. Mutually exclusive with
 .BR cmd .

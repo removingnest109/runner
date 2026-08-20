@@ -65,11 +65,12 @@ int generate_config_file(const fs::path& dir, std::string& message) {
     }
     out <<
         "# runner.toml - actions for `runner`. Each [[action]] is one runnable command.\n"
+        "# A label may nest with '/': \"General/Example\" shows \"Example\" under a\n"
+        "# \"General\" heading. depends_on / sequence reference the full label path.\n"
         "[[action]]\n"
-        "label = \"Example\"\n"
+        "label = \"General/Example\"\n"
         "cmd   = \"echo hello from runner\"\n"
-        "desc  = \"An example action - edit or replace me\"\n"
-        "group = \"General\"\n";
+        "desc  = \"An example action - edit or replace me\"\n";
     message = "wrote " + target.string();
     return 0;
 }

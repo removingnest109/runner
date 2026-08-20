@@ -62,6 +62,8 @@ configure_file(
 add_library(runner_lib STATIC
   src/config.cpp
   src/plan.cpp
+  src/label_path.cpp
+  src/display_order.cpp
   src/ansi_parser.cpp
   src/process_runner.cpp
   src/cli.cpp
@@ -92,6 +94,8 @@ if(RUNNER_BUILD_TESTS)
     tests/test_config_parse.cpp
     tests/test_config_load.cpp
     tests/test_plan.cpp
+    tests/test_label_path.cpp
+    tests/test_display_order.cpp
     tests/test_ansi_parser.cpp
     tests/test_process_runner.cpp
     tests/test_clipboard.cpp

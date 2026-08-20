@@ -1,6 +1,7 @@
 #include "app.hpp"
 #include "ansi_parser.hpp"
 #include "clipboard.hpp"
+#include "display_order.hpp"
 #include "plan.hpp"
 #include "process_runner.hpp"
 
@@ -104,33 +105,6 @@ Element line_to_element(const StyledLine& line) {
     return hbox(std::move(spans));
 }
 
-// Display model: actions ordered by group first-appearance, in-group file order.
-struct DisplayModel {
-    std::vector<Action> ordered;
-    std::vector<std::string> group_of;  // group name per ordered action ("" ok)
-};
-
-DisplayModel build_display(const std::vector<Action>& actions) {
-    DisplayModel m;
-    // Hidden actions stay resolvable as chain members but never appear in the
-    // menu, so they're excluded here (before grouping, so an all-hidden group
-    // gets no header either).
-    std::vector<std::string> group_order;
-    for (const auto& a : actions) {
-        if (a.hidden) continue;
-        std::string g = a.group;  // "" allowed (Ungrouped)
-        if (std::find(group_order.begin(), group_order.end(), g) == group_order.end())
-            group_order.push_back(g);
-    }
-    for (const auto& g : group_order) {
-        for (const auto& a : actions) {
-            if (a.hidden) continue;
-            if (a.group == g) { m.ordered.push_back(a); m.group_of.push_back(g); }
-        }
-    }
-    return m;
-}
-
 std::string state_label(RunState st, int code) {
     switch (st) {
         case RunState::Idle:    return "idle";
@@ -176,12 +150,15 @@ void App::run() {
         tcsetattr(STDIN_FILENO, TCSANOW, &raw);
     }
 
-    DisplayModel model = build_display(actions_);
+    // Flat, ordered list of visible actions with their group paths. Nesting is
+    // purely a render concern (headers + indentation); `selected` stays a plain
+    // index into this list, so all navigation below is oblivious to the tree.
+    std::vector<DisplayRow> rows = build_display_order(actions_);
 
     AnsiParser parser;
     ProcessRunner runner([&] { screen.PostEvent(Event::Custom); });
 
-    int selected = 0;          // index into model.ordered
+    int selected = 0;          // index into rows
     bool follow = true;        // auto-scroll output to bottom
     int scroll_line = 0;       // used when not following
     int total_lines = 0;       // output line count from the last render (for wheel)
@@ -328,21 +305,40 @@ void App::run() {
     };
 
     auto sidebar = Renderer([&] {
-        Elements rows;
-        std::string last_group = "\x01";  // impossible sentinel
-        for (size_t i = 0; i < model.ordered.size(); ++i) {
-            const std::string& g = model.group_of[i];
-            if (g != last_group) {
-                std::string header = g.empty() ? "Ungrouped" : g;
-                rows.push_back(text(header) | bold | color(ftxui::Color::GrayLight));
-                last_group = g;
+        Elements out;
+        // Track the previous row's group path. When the current path diverges
+        // from it at depth k (k = length of their common prefix), every header
+        // from depth k downward is newly entered and must be drawn; shared
+        // ancestor headers above k were already emitted for an earlier sibling,
+        // so a parent with scattered subgroups shows its header exactly once.
+        std::vector<std::string> last_path;
+        for (size_t i = 0; i < rows.size(); ++i) {
+            const std::vector<std::string>& path = rows[i].path;
+            size_t k = 0;
+            while (k < path.size() && k < last_path.size() && path[k] == last_path[k])
+                ++k;
+            for (size_t d = k; d < path.size(); ++d) {
+                // Two leading spaces of indent per level, matching the action
+                // rows (which sit one level deeper than their group).
+                std::string indent(2 * d, ' ');
+                out.push_back(text(indent + path[d]) | bold
+                              | color(ftxui::Color::GrayLight));
             }
-            Element row = text((static_cast<int>(i) == selected ? "▶ " : "  ")
-                               + model.ordered[i].label);
+            last_path = path;
+
+            // The action sits one level below its deepest header. The 2-char
+            // "▶ "/"  " marker supplies that final level of indent (as it did in
+            // the pre-nesting flat sidebar), so indent only to the parent depth
+            // here — path is never empty, so size()-1 is safe.
+            std::string indent(2 * (path.size() - 1), ' ');
+            // Show only the leaf name; the group path is conveyed by the headers
+            // above. (The status line below shows the full label for context.)
+            Element row = text(indent + (static_cast<int>(i) == selected ? "▶ " : "  ")
+                               + rows[i].leaf);
             if (static_cast<int>(i) == selected) row = row | inverted;
-            rows.push_back(row);
+            out.push_back(row);
         }
-        return vbox(std::move(rows)) | frame;
+        return vbox(std::move(out)) | frame;
     });
 
     auto output = Renderer([&] {
@@ -377,7 +373,7 @@ void App::run() {
             "   ↑↓ select · Enter run · p preview · Ctrl+C kill · Ctrl+D quit · y copy · Ctrl+Y copy all";
         if (!copied_msg.empty()) status += "   [" + copied_msg + "]";
 
-        std::string desc = model.ordered.empty() ? "" : model.ordered[selected].desc;
+        std::string desc = rows.empty() ? "" : rows[selected].action.desc;
 
         return vbox({
             text(" runner") | bold,
@@ -388,7 +384,7 @@ void App::run() {
                 output->Render() | flex,
             }) | flex,
             separator(),
-            text(desc.empty() ? " " : (" " + model.ordered[selected].label + " — " + desc)),
+            text(desc.empty() ? " " : (" " + rows[selected].action.label + " — " + desc)),
             separator(),
             text(" " + status),
         });
@@ -431,8 +427,8 @@ void App::run() {
         }
 
         if (e == Event::ArrowDown || e == Event::Character('j')) {
-            if (!model.ordered.empty())
-                selected = std::min(selected + 1, (int)model.ordered.size() - 1);
+            if (!rows.empty())
+                selected = std::min(selected + 1, (int)rows.size() - 1);
             return true;
         }
         if (e == Event::ArrowUp || e == Event::Character('k')) {
@@ -440,15 +436,15 @@ void App::run() {
             return true;
         }
         if (e == Event::Return) {
-            if (runner.state() != RunState::Running && !model.ordered.empty())
-                start_chain(model.ordered[selected].label);
+            if (runner.state() != RunState::Running && !rows.empty())
+                start_chain(rows[selected].action.label);
             return true;
         }
         // Preview the resolved plan (deps + composite members + gates) without
         // running anything.
         if (e == Event::Character('p')) {
-            if (runner.state() != RunState::Running && !model.ordered.empty())
-                dry_run(model.ordered[selected].label);
+            if (runner.state() != RunState::Running && !rows.empty())
+                dry_run(rows[selected].action.label);
             return true;
         }
         if (e == ctrl_c) { runner.kill(); return true; }

@@ -5,5 +5,5 @@ TEST_CASE("Action default-constructs with empty fields") {
     Action a;
     CHECK(a.label.empty());
     CHECK(a.cmd.empty());
-    CHECK(a.group.empty());
+    CHECK(a.desc.empty());
 }

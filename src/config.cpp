@@ -1,10 +1,31 @@
 #include "config.hpp"
+#include "label_path.hpp"
 #include "plan.hpp"
 #include <toml++/toml.hpp>
 #include <cstdlib>
 #include <string>
 #include <fstream>
 #include <sstream>
+
+namespace {
+
+// Canonicalize a path-style label or reference: split on '/', trim each segment,
+// rejoin with '/'. Sets `ok = false` (and returns the raw input) if the value is
+// empty or has any empty segment ("a//b", "/b", "a/", ""), which the caller
+// reports as a load error. Keeps identity and references consistent regardless
+// of incidental whitespace, so plan.cpp can match them by exact string.
+std::string canonical_path(const std::string& raw, bool& ok) {
+    std::vector<std::string> segs = split_label(raw);
+    std::string out;
+    for (std::size_t i = 0; i < segs.size(); ++i) {
+        if (segs[i].empty()) { ok = false; return raw; }
+        if (i) out += '/';
+        out += segs[i];
+    }
+    return out;
+}
+
+}  // namespace
 
 ParseResult parse_config(const std::string& toml_content) {
     ParseResult r;
@@ -32,8 +53,19 @@ ParseResult parse_config(const std::string& toml_content) {
         }
         Action a;
         bool complete = true;
-        if (auto v = (*t)["label"].value<std::string>()) a.label = *v;
-        else { r.errors.push_back("action #" + std::to_string(idx) + ": missing 'label'"); complete = false; }
+        if (auto v = (*t)["label"].value<std::string>()) {
+            // The label carries the full nesting path ("Packaging/Arch/build");
+            // canonicalize it and reject empty path segments.
+            bool ok = true;
+            std::string canon = canonical_path(*v, ok);
+            if (!ok) {
+                r.errors.push_back("action #" + std::to_string(idx) +
+                    ": invalid 'label' '" + *v + "' (empty path segment)");
+                complete = false;
+            } else {
+                a.label = canon;
+            }
+        } else { r.errors.push_back("action #" + std::to_string(idx) + ": missing 'label'"); complete = false; }
 
         bool has_cmd = false;
         if (auto v = (*t)["cmd"].value<std::string>()) { a.cmd = *v; has_cmd = true; }
@@ -42,7 +74,14 @@ ParseResult parse_config(const std::string& toml_content) {
         if (auto seq = (*t)["sequence"].as_array()) {
             has_seq = true;
             for (auto& n : *seq) {
-                if (auto s = n.value<std::string>()) a.sequence.push_back(*s);
+                if (auto s = n.value<std::string>()) {
+                    bool ok = true;
+                    std::string canon = canonical_path(*s, ok);
+                    if (!ok) { r.errors.push_back("action #" + std::to_string(idx) +
+                        ": invalid 'sequence' reference '" + *s + "' (empty path segment)");
+                        complete = false; }
+                    else a.sequence.push_back(canon);
+                }
                 else { r.errors.push_back("action #" + std::to_string(idx) +
                        ": 'sequence' entries must be strings"); complete = false; }
             }
@@ -62,7 +101,6 @@ ParseResult parse_config(const std::string& toml_content) {
         if (!complete) continue;   // errors recorded; don't push an incomplete action
         a.desc  = (*t)["desc"].value_or(std::string{});
         a.cwd   = (*t)["cwd"].value_or(std::string{});
-        a.group = (*t)["group"].value_or(std::string{});
         a.only_if_cmd = (*t)["only_if_cmd"].value_or(std::string{});
         a.hidden = (*t)["hidden"].value_or(false);
         if (a.is_composite() && !a.only_if_cmd.empty())
@@ -71,7 +109,13 @@ ParseResult parse_config(const std::string& toml_content) {
                 "to gate); put the gate on the member actions instead");
         if (auto deps = (*t)["depends_on"].as_array()) {
             for (auto& n : *deps) {
-                if (auto s = n.value<std::string>()) a.depends_on.push_back(*s);
+                if (auto s = n.value<std::string>()) {
+                    bool ok = true;
+                    std::string canon = canonical_path(*s, ok);
+                    if (!ok) r.errors.push_back("action '" + a.label +
+                        "': invalid depends_on reference '" + *s + "' (empty path segment)");
+                    else a.depends_on.push_back(canon);
+                }
                 else r.errors.push_back("action '" + a.label +
                      "': depends_on entries must be strings");
             }

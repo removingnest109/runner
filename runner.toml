@@ -1,130 +1,118 @@
+# runner.toml - actions for `runner`.
+#
+# Each [[action]]'s `label` is a path: the last '/'-segment is the name shown in
+# the sidebar, earlier segments nest it under headings (e.g. "Packaging/Arch/build"
+# shows "build" under Packaging › Arch). depends_on / sequence reference the full
+# label path. A label with no '/' is a top-level (Ungrouped) action.
+
 [[action]]
-label = "Build"
+label = "Dev/Build"
 cmd   = "cmake --build build"
 desc  = "Compile runner and its tests"
-group = "Dev"
 
 [[action]]
-label = "Test"
+label = "Dev/Test"
 cmd   = "./build/runner_tests"
 desc  = "Run the doctest suite"
-group = "Dev"
 
 [[action]]
-label = "Configure"
+label = "Dev/Configure"
 cmd   = "cmake -S . -B build"
 desc  = "Re-run CMake configure"
-group = "Dev"
 
 # Composite: `sequence` runs the listed actions in order (stopping on the first
-# failure). Actions are referenced by their unique `label`. See also the
+# failure). Actions are referenced by their full label path. See also the
 # per-action `depends_on = [...]` and `only_if_cmd = "..."` fields.
 [[action]]
-label = "Check (build + test)"
-sequence = ["Build", "Test"]
+label = "Dev/Check"
+sequence = ["Dev/Build", "Dev/Test"]
 desc  = "Build, then run the test suite; stops if the build fails"
-group = "Dev"
 
 # --- Release ---------------------------------------------------------------
 # Phase A bumps the version everywhere, commits, and creates a LOCAL tag. Push
 # the tag yourself (git push origin vX.Y.Z), then run the checksum refresh.
 [[action]]
-label = "Release: bump major (X.Y.Z→X.Y+1.0)"
+label = "Release/bump major"
 cmd   = "scripts/bump-version.sh major"
 desc  = "Bump the middle version number, update all packaging files, commit + local tag"
-group = "Release"
 
 [[action]]
-label = "Release: bump minor (X.Y.Z→X.Y.Z+1)"
+label = "Release/bump minor"
 cmd   = "scripts/bump-version.sh minor"
 desc  = "Bump the last version number, update all packaging files, commit + local tag"
-group = "Release"
 
 [[action]]
-label = "Release: refresh checksums"
+label = "Release/refresh checksums"
 cmd   = "scripts/refresh-checksums.sh"
 desc  = "After pushing the tag: fetch the release tarball, update AUR/Void/Homebrew/Nix checksums, commit"
-group = "Release"
 
 [[action]]
-label = "Truecolor demo"
+label = "Demo/Truecolor"
 cmd   = "printf '\\033[38;2;255;128;0mtruecolor orange\\033[0m \\033[38;5;39m256-blue\\033[0m\\n'"
 desc  = "Prints a truecolor and a 256-color span"
-group = "Demo"
 
 [[action]]
-label = "Env demo"
+label = "Demo/Env"
 cmd   = "echo \"BOARD=$BOARD PATH_HEAD=${PATH%%:*}\""
 desc  = "Echoes an injected var"
-group = "Demo"
 env   = { BOARD = "leg" }
 
 [[action]]
-label = "Build Void package"
+label = "Packaging/Void/build"
 cmd   = 'mkdir -p "$HOME/void-packages/srcpkgs/runner" && cp packaging/void/template "$HOME/void-packages/srcpkgs/runner/template" && cd "$HOME/void-packages" && ./xbps-src clean runner && ./xbps-src -Q pkg runner && ls -la hostdir/binpkgs/runner-*.xbps'
 desc  = "Sync the template into ~/void-packages and build the .xbps (runs tests)"
-group = "Packaging"
 
 [[action]]
-label = "Void: install built package"
+label = "Packaging/Void/install"
 cmd   = 'sudo xbps-install -R "$HOME/void-packages/hostdir/binpkgs" -y runner && runner --version'
-desc  = "Install/upgrade runner from the locally built .xbps (needs passwordless sudo); run after Build Void package"
-group = "Packaging"
+desc  = "Install/upgrade runner from the locally built .xbps (needs passwordless sudo); run after Packaging/Void/build"
 
 # --- AUR (Arch) ------------------------------------------------------------
 # Needs: makepkg + the AUR ftxui dep installed (see packaging/aur/README.md).
 [[action]]
-label = "AUR: build package"
+label = "Packaging/Arch/build"
 cmd   = "makepkg -f"
 desc  = "Build the AUR package; check() runs the doctest suite"
-group = "Packaging"
 cwd   = "packaging/aur"
 
 [[action]]
-label = "AUR: regen .SRCINFO"
+label = "Packaging/Arch/regen .SRCINFO"
 cmd   = "makepkg --printsrcinfo > .SRCINFO && echo 'wrote packaging/aur/.SRCINFO'"
 desc  = "Regenerate .SRCINFO after editing PKGBUILD"
-group = "Packaging"
 cwd   = "packaging/aur"
 
 [[action]]
-label = "AUR: namcap lint"
+label = "Packaging/Arch/namcap lint"
 cmd   = "namcap PKGBUILD; for p in runner-*.pkg.tar.zst; do [ -e \"$p\" ] && namcap \"$p\"; done"
 desc  = "Lint the PKGBUILD (and built package, if present) with namcap"
-group = "Packaging"
 cwd   = "packaging/aur"
 
 [[action]]
-label = "AUR: build + lint"
-sequence = ["AUR: build package", "AUR: namcap lint"]
+label = "Packaging/Arch/build+lint"
+sequence = ["Packaging/Arch/build", "Packaging/Arch/namcap lint"]
 desc  = "Build the AUR package, then lint it with namcap"
-group = "Packaging"
 
 # --- Nix -------------------------------------------------------------------
 # Needs: the nix CLI with flakes enabled.
 [[action]]
-label = "Nix: build"
+label = "Packaging/Nix/build"
 cmd   = "nix build .#runner --print-build-logs && ./result/bin/runner --version"
 desc  = "Build the flake's default package and print its version"
-group = "Packaging"
 
 [[action]]
-label = "Nix: flake check"
+label = "Packaging/Nix/flake check"
 cmd   = "nix flake check --print-build-logs"
 desc  = "Evaluate the flake and build its checks"
-group = "Packaging"
 
 [[action]]
-label = "Nix: lock"
+label = "Packaging/Nix/lock"
 cmd   = "nix flake lock && echo 'wrote flake.lock'"
 desc  = "Pin nixpkgs by generating flake.lock"
-group = "Packaging"
 
 [[action]]
-label = "Nix: build + check"
-sequence = ["Nix: build", "Nix: flake check"]
+label = "Packaging/Nix/build+check"
+sequence = ["Packaging/Nix/build", "Packaging/Nix/flake check"]
 desc  = "Build the flake package, then run flake check"
-group = "Packaging"
 
 # --- Debian / Ubuntu -------------------------------------------------------
 # Runs inside a debian:sid podman container (scripts/deb-podman.sh) so the .deb
@@ -133,52 +121,45 @@ group = "Packaging"
 # rebuild against newer sid packages. On a real Debian 14+/Ubuntu host you can
 # instead run packaging/debian/build.sh directly (see packaging/debian/README.md).
 # The three steps are `hidden` (kept out of the menu) and driven only through the
-# "Debian: build + lint + inspect" composite below. Drop hidden to run one solo.
+# "Packaging/Debian/build+lint+inspect" composite below. Drop hidden to run one solo.
 [[action]]
-label = "Debian: build .deb"
+label = "Packaging/Debian/build"
 cmd   = "scripts/deb-podman.sh 'WORK=/src/dist/deb packaging/debian/build.sh'"
 desc  = "In a debian:sid container: assemble debian/ onto the release tarball and build the .deb (runs tests)"
-group = "Packaging"
 hidden = true
 
 [[action]]
-label = "Debian: lint .deb"
+label = "Packaging/Debian/lint"
 cmd   = "scripts/deb-podman.sh scripts/deb-lint.sh"
 desc  = "In a debian:sid container: run lintian on the most recently built .deb"
-group = "Packaging"
 hidden = true
 
 [[action]]
-label = "Debian: inspect .deb"
+label = "Packaging/Debian/inspect"
 cmd   = "scripts/deb-podman.sh scripts/deb-inspect.sh"
 desc  = "In a debian:sid container: show metadata, runtime Depends, and file list of the built .deb"
-group = "Packaging"
 hidden = true
 
 [[action]]
-label = "Debian: build + lint + inspect"
-sequence = ["Debian: build .deb", "Debian: lint .deb", "Debian: inspect .deb"]
+label = "Packaging/Debian/build+lint+inspect"
+sequence = ["Packaging/Debian/build", "Packaging/Debian/lint", "Packaging/Debian/inspect"]
 desc  = "Build the .deb, then lint and inspect it (stops on the first failure)"
-group = "Packaging"
 
 # --- Homebrew --------------------------------------------------------------
 # Needs: brew with the ftxui/tomlplusplus formulae available (see packaging/homebrew/README.md).
 [[action]]
-label = "Homebrew: build formula"
+label = "Packaging/Homebrew/build"
 cmd   = "brew install --build-from-source ./runner.rb && runner --version"
 desc  = "Build+install the formula from source against Homebrew's ftxui"
-group = "Packaging"
 cwd   = "packaging/homebrew"
 
 [[action]]
-label = "Homebrew: audit formula"
+label = "Packaging/Homebrew/audit"
 cmd   = "brew audit --strict --formula ./runner.rb && echo 'audit OK'"
 desc  = "Lint the Homebrew formula with brew audit"
-group = "Packaging"
 cwd   = "packaging/homebrew"
 
 [[action]]
-label = "Homebrew: build + audit"
-sequence = ["Homebrew: build formula", "Homebrew: audit formula"]
+label = "Packaging/Homebrew/build+audit"
+sequence = ["Packaging/Homebrew/build", "Packaging/Homebrew/audit"]
 desc  = "Build the formula, then audit it"
-group = "Packaging"

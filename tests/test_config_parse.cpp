@@ -4,19 +4,17 @@
 TEST_CASE("parse_config reads a valid action with all fields") {
     ParseResult r = parse_config(R"(
 [[action]]
-label = "Build"
+label = "Dev/Build"
 cmd   = "make"
 desc  = "build it"
 cwd   = "firmware"
-group = "Dev"
 )");
     REQUIRE(r.errors.empty());
     REQUIRE(r.actions.size() == 1);
-    CHECK(r.actions[0].label == "Build");
+    CHECK(r.actions[0].label == "Dev/Build");
     CHECK(r.actions[0].cmd == "make");
     CHECK(r.actions[0].desc == "build it");
     CHECK(r.actions[0].cwd == "firmware");
-    CHECK(r.actions[0].group == "Dev");
 }
 
 TEST_CASE("parse_config leaves optional fields empty when unset") {
@@ -29,7 +27,6 @@ cmd   = "ctest"
     REQUIRE(r.actions.size() == 1);
     CHECK(r.actions[0].desc.empty());
     CHECK(r.actions[0].cwd.empty());
-    CHECK(r.actions[0].group.empty());
 }
 
 TEST_CASE("parse_config reports missing required fields") {
@@ -271,4 +268,92 @@ cmd = "b"
 depends_on = ["A"]
 )");
     CHECK_FALSE(r.errors.empty());
+}
+
+// ---- path-label canonicalization + validation (folded group) --------------
+
+TEST_CASE("parse_config canonicalizes whitespace around path segments") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = " Packaging / Arch / build package "
+cmd = "makepkg"
+)");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions.size() == 1);
+    // Surrounding whitespace per segment is trimmed; internal space is kept.
+    CHECK(r.actions[0].label == "Packaging/Arch/build package");
+}
+
+TEST_CASE("parse_config canonicalizes references so they resolve") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Dev/Build"
+cmd = "make"
+[[action]]
+label = "Dev/Check"
+sequence = [" Dev / Build "]
+)");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions.size() == 2);
+    CHECK(r.actions[1].sequence[0] == "Dev/Build");
+}
+
+TEST_CASE("parse_config rejects an empty path segment in a label") {
+    for (const char* bad : {"a//b", "/b", "a/", ""}) {
+        ParseResult r = parse_config(std::string("[[action]]\nlabel = \"") +
+                                     bad + "\"\ncmd = \"x\"\n");
+        CHECK_FALSE(r.errors.empty());
+    }
+}
+
+TEST_CASE("parse_config rejects an empty path segment in a reference") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "A"
+cmd = "a"
+[[action]]
+label = "B"
+cmd = "b"
+depends_on = ["bad//ref"]
+)");
+    CHECK_FALSE(r.errors.empty());
+}
+
+TEST_CASE("parse_config allows the same leaf under different groups") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Packaging/Arch/build"
+cmd = "makepkg"
+[[action]]
+label = "Packaging/Debian/build"
+cmd = "dpkg-buildpackage"
+)");
+    CHECK(r.errors.empty());
+    CHECK(r.actions.size() == 2);
+}
+
+TEST_CASE("parse_config still rejects two identical full-path labels") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Packaging/Arch/build"
+cmd = "makepkg"
+[[action]]
+label = "Packaging/Arch/build"
+cmd = "makepkg -f"
+)");
+    CHECK_FALSE(r.errors.empty());
+}
+
+TEST_CASE("parse_config resolves a bare (root) label reference") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Build"
+cmd = "make"
+[[action]]
+label = "Packaging/Arch/build"
+cmd = "makepkg"
+depends_on = ["Build"]
+)");
+    CHECK(r.errors.empty());
+    CHECK(r.actions.size() == 2);
 }

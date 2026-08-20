@@ -5,11 +5,15 @@
 
 // One runnable entry from runner.toml. Empty string means the field was unset.
 struct Action {
-    std::string label;  // shown in the sidebar; unique key (required in config)
+    // Path-style unique key: "Packaging/Arch/build" nests the action under
+    // Packaging › Arch and shows "build" in the sidebar. The last '/'-segment is
+    // the display name; earlier segments are its groups/subgroups. A label with
+    // no '/' is a root action (rendered under "Ungrouped"). References in
+    // depends_on / sequence use this full path. Required in config.
+    std::string label;
     std::string cmd;    // passed to /bin/sh -c (required unless `sequence` is set)
     std::string desc;   // optional description
     std::string cwd;    // optional working dir; resolved to absolute at load time
-    std::string group;  // optional group label; "" renders under "Ungrouped"
 
     // Environment variables injected into this action's child process.
     // Ordered; empty means none. (toml++ table iteration order; not relied upon.)

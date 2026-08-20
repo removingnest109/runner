@@ -137,33 +137,67 @@ runner --help
 Copy uses OSC 52 (works over SSH/tmux; honored by e.g. alacritty) and, when
 available, an external clipboard tool (`wl-copy`, `xclip`/`xsel`, or `pbcopy`).
 
-### Chaining
+### Groups
 
-Actions are addressed by their (unique) `label` and can pull in other actions:
+An action's `label` is a **path**: the last `/`-segment is the name shown in the
+sidebar, and any earlier segments nest it under bold headings. A label with no
+`/` is a top-level action, rendered under **Ungrouped**.
 
 ```toml
 [[action]]
-label = "Build"
+label = "Packaging/Debian/build"    # "build" under Packaging › Debian
+cmd   = "./packaging/debian/build.sh"
+
+[[action]]
+label = "Packaging/Arch/build"      # a different "build" under Packaging › Arch
+cmd   = "makepkg -si"
+```
+
+renders as
+
+```
+Packaging
+  Debian
+    build
+  Arch
+    build
+```
+
+Segments are whitespace-trimmed. A parent's subgroups are collected under one
+heading even when the actions are scattered through the file, and a node can mix
+direct actions with subgroups (they order by first appearance). Because the
+group is part of the label, the **name only has to be unique within its group** —
+`Packaging/Debian/build` and `Packaging/Arch/build` happily coexist.
+
+### Chaining
+
+Every action is addressed by its full label path, and can pull in others by that
+same path:
+
+```toml
+[[action]]
+label = "Dev/Build"
 cmd   = "cmake --build build"
 
 [[action]]
-label = "Test"
+label = "Dev/Test"
 cmd   = "ctest --test-dir build"
-depends_on = ["Build"]              # runs Build first
-only_if_cmd = "! git diff --quiet"  # ...but skips Test when nothing changed
+depends_on = ["Dev/Build"]          # runs Dev/Build first
+only_if_cmd = "! git diff --quiet"  # ...but skips it when nothing changed
 
 [[action]]
-label = "Check"
-sequence = ["Build", "Test"]        # composite: runs each in order
+label = "Dev/Check"
+sequence = ["Dev/Build", "Dev/Test"]  # composite: runs each in order
 ```
 
 Triggering an action resolves a **chain**: its `depends_on` (recursively) and,
 for a composite, its `sequence` members, deduplicated into one ordered run. A
 shared dependency runs once per chain, and the chain stops on the first command
 that exits non-zero. `only_if_cmd` runs before an action in that action's
-`cwd`/`env`; a zero exit runs it, non-zero skips it. Duplicate labels, unknown
-references, and dependency cycles are load errors. Press `p` to preview the
-resolved plan before running it.
+`cwd`/`env`; a zero exit runs it, non-zero skips it. A reference is the target's
+full label path (`Packaging/Arch/build`); duplicate labels, unknown references,
+and dependency cycles are load errors. Press `p` to preview the resolved plan
+before running it.
 
 Add `hidden = true` to keep an action out of the menu while leaving it runnable
 as a `depends_on`/`sequence` member — handy for a composite's steps you never
