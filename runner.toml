@@ -9,14 +9,16 @@
 label = "Dev/Build"
 cmd   = "cmake --build build"
 desc  = "Compile runner and its tests"
+hidden = true
 
 [[action]]
 label = "Dev/Test"
 cmd   = "./build/runner_tests"
 desc  = "Run the doctest suite"
+hidden = true
 
 [[action]]
-label = "Dev/Configure"
+label = "Dev/Configure Cmake"
 cmd   = "cmake -S . -B build"
 desc  = "Re-run CMake configure"
 
@@ -24,7 +26,7 @@ desc  = "Re-run CMake configure"
 # failure). Actions are referenced by their full label path. See also the
 # per-action `depends_on = [...]` and `only_if_cmd = "..."` fields.
 [[action]]
-label = "Dev/Check"
+label = "Dev/Build+Test"
 sequence = ["Dev/Build", "Dev/Test"]
 desc  = "Build, then run the test suite; stops if the build fails"
 
@@ -74,18 +76,21 @@ label = "Packaging/Arch/build"
 cmd   = "makepkg -f"
 desc  = "Build the AUR package; check() runs the doctest suite"
 cwd   = "packaging/aur"
+hidden = true
 
 [[action]]
 label = "Packaging/Arch/regen .SRCINFO"
 cmd   = "makepkg --printsrcinfo > .SRCINFO && echo 'wrote packaging/aur/.SRCINFO'"
 desc  = "Regenerate .SRCINFO after editing PKGBUILD"
 cwd   = "packaging/aur"
+hidden = true
 
 [[action]]
 label = "Packaging/Arch/namcap lint"
 cmd   = "namcap PKGBUILD; for p in runner-*.pkg.tar.zst; do [ -e \"$p\" ] && namcap \"$p\"; done"
 desc  = "Lint the PKGBUILD (and built package, if present) with namcap"
 cwd   = "packaging/aur"
+hidden = true
 
 [[action]]
 label = "Packaging/Arch/build+lint"
@@ -98,16 +103,19 @@ desc  = "Build the AUR package, then lint it with namcap"
 label = "Packaging/Nix/build"
 cmd   = "nix build .#runner --print-build-logs && ./result/bin/runner --version"
 desc  = "Build the flake's default package and print its version"
+hidden = true
 
 [[action]]
 label = "Packaging/Nix/flake check"
 cmd   = "nix flake check --print-build-logs"
 desc  = "Evaluate the flake and build its checks"
+hidden = true
 
 [[action]]
 label = "Packaging/Nix/lock"
 cmd   = "nix flake lock && echo 'wrote flake.lock'"
 desc  = "Pin nixpkgs by generating flake.lock"
+hidden = true
 
 [[action]]
 label = "Packaging/Nix/build+check"
@@ -152,12 +160,14 @@ label = "Packaging/Homebrew/build"
 cmd   = "brew install --build-from-source ./runner.rb && runner --version"
 desc  = "Build+install the formula from source against Homebrew's ftxui"
 cwd   = "packaging/homebrew"
+hidden = true
 
 [[action]]
 label = "Packaging/Homebrew/audit"
 cmd   = "brew audit --strict --formula ./runner.rb && echo 'audit OK'"
 desc  = "Lint the Homebrew formula with brew audit"
 cwd   = "packaging/homebrew"
+hidden = true
 
 [[action]]
 label = "Packaging/Homebrew/build+audit"
