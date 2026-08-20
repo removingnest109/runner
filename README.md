@@ -11,7 +11,8 @@ mouse selection / clipboard copy of the output pane.
 
 ## Install
 
-### Debian / Ubuntu
+<details>
+<summary><strong>Debian / Ubuntu</strong></summary>
 
 A prebuilt `amd64` `.deb` is attached to every
 [release](https://github.com/removingnest109/runner/releases/latest). Download it
@@ -26,7 +27,10 @@ an Ubuntu recent enough to ship `libftxui-dev >= 6`. If `dpkg` reports unmet
 dependencies, pull them in with `sudo apt-get install -f`. To build the `.deb`
 yourself, see [`packaging/debian/`](packaging/debian/).
 
-### Arch (AUR)
+</details>
+
+<details>
+<summary><strong>Arch (AUR)</strong></summary>
 
 ```sh
 yay -S ftxui                       # FTXUI is not in the official repos
@@ -35,7 +39,10 @@ cd packaging/aur && makepkg -si    # builds (runs tests) and installs
 
 See [`packaging/aur/`](packaging/aur/) for details.
 
-### Homebrew
+</details>
+
+<details>
+<summary><strong>Homebrew</strong></summary>
 
 ```sh
 brew install --build-from-source ./packaging/homebrew/runner.rb
@@ -44,7 +51,10 @@ brew install --build-from-source ./packaging/homebrew/runner.rb
 See [`packaging/homebrew/`](packaging/homebrew/), which also covers publishing via
 a tap.
 
-### Nix
+</details>
+
+<details>
+<summary><strong>Nix</strong></summary>
 
 ```sh
 nix run github:removingnest109/runner        # run without installing
@@ -52,38 +62,16 @@ nix run github:removingnest109/runner        # run without installing
 
 See [`packaging/nix/`](packaging/nix/) for installing into a profile or nixpkgs.
 
-### Void
+</details>
+
+<details>
+<summary><strong>Void</strong></summary>
 
 Build from the `xbps-src` template at
 [`packaging/void/`](packaging/void/) (FTXUI is statically linked from its release
 tarball, so the build is fully offline).
 
-## Usage
-
-```sh
-runner                    # search upward for runner.toml and open the UI
-runner -c path/to.toml    # use a specific config
-runner --generate-config  # write a starter runner.toml here
-runner --help
-```
-
-### Keys
-
-| Key | Action |
-|-----|--------|
-| `↑`/`↓` or `k`/`j` | Select action |
-| `Enter` | Run the selected action |
-| `PgUp`/`PgDn`, `End`, mouse wheel | Scroll the output pane |
-| drag with the mouse | Select output text |
-| `y` | Copy the current selection to the clipboard |
-| `Ctrl+Y` | Copy the full output of the last command |
-| `Ctrl+C` | Kill the running child |
-| `Ctrl+D` | Quit |
-
-Copy uses OSC 52 (works over SSH/tmux; honored by e.g. alacritty) and, when
-available, an external clipboard tool (`wl-copy`, `xclip`/`xsel`, or `pbcopy`).
-
-See `man 1 runner` for the full `runner.toml` schema.
+</details>
 
 <details>
 <summary><strong>Building from source</strong></summary>
@@ -121,6 +109,33 @@ Installs the `runner` binary, the `runner.1` man page, and
 `share/doc/runner/runner.toml.example`.
 
 </details>
+
+## Usage
+
+```sh
+runner                    # search upward for runner.toml and open the UI
+runner -c path/to.toml    # use a specific config
+runner --generate-config  # write a starter runner.toml here
+runner --help
+```
+
+### Keys
+
+| Key | Action |
+|-----|--------|
+| `↑`/`↓` or `k`/`j` | Select action |
+| `Enter` | Run the selected action |
+| `PgUp`/`PgDn`, `End`, mouse wheel | Scroll the output pane |
+| drag with the mouse | Select output text |
+| `y` | Copy the current selection to the clipboard |
+| `Ctrl+Y` | Copy the full output of the last command |
+| `Ctrl+C` | Kill the running child |
+| `Ctrl+D` | Quit |
+
+Copy uses OSC 52 (works over SSH/tmux; honored by e.g. alacritty) and, when
+available, an external clipboard tool (`wl-copy`, `xclip`/`xsel`, or `pbcopy`).
+
+See `man 1 runner` for the full `runner.toml` schema.
 
 ## Packaging
 
