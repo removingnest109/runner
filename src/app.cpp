@@ -1,7 +1,10 @@
 #include "app.hpp"
 #include "ansi_parser.hpp"
 #include "clipboard.hpp"
+#include "plan.hpp"
 #include "process_runner.hpp"
+
+#include <functional>
 
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/screen_interactive.hpp>
@@ -179,11 +182,145 @@ void App::run() {
     int total_lines = 0;       // output line count from the last render (for wheel)
     std::string copied_msg;    // transient status feedback after a copy
 
+    // Chain execution state. Every run — even a plain command — is a chain: the
+    // triggered action is resolved to a flat, deduped list of command steps
+    // (its dependencies and, for a composite, its members) which are launched
+    // one at a time through the single ProcessRunner. `step_in_flight` marks a
+    // child (a step's only_if gate OR its command) as running so the completion
+    // handler fires exactly once, on the Running->terminal transition.
+    Plan chain;
+    std::size_t chain_idx = 0;
+    bool active_chain = false;
+    bool awaiting_gate = false;   // current child is an only_if_cmd gate check
+    bool step_in_flight = false;  // a child was launched and hasn't been reaped
+
     // FTXUI v5.0.0's Event has no named Event::CtrlC/Event::CtrlD constants;
     // per ftxui/component/event.cpp these map to raw control bytes 3 and 4.
     const Event ctrl_c = Event::Special(std::string(1, static_cast<char>(3)));
     const Event ctrl_d = Event::Special(std::string(1, static_cast<char>(4)));
     const Event ctrl_y = Event::Special(std::string(1, static_cast<char>(25)));
+
+    auto find_action = [&](const std::string& label) -> const Action* {
+        for (const auto& a : actions_)
+            if (a.label == label) return &a;
+        return nullptr;  // unreachable for a resolved plan (labels are validated)
+    };
+
+    // Launch a step's command. Feeds a "$ cmd" header, then forks it.
+    auto run_command = [&](const Action& a) {
+        awaiting_gate = false;
+        parser.feed("$ " + a.cmd + "\n");
+        step_in_flight = true;
+        follow = true;
+        runner.start(a);
+    };
+
+    // Begin step `i`: if it has an only_if_cmd gate, run that first (its exit
+    // code decides whether the command runs); otherwise run the command.
+    std::function<void(std::size_t)> begin_step = [&](std::size_t i) {
+        const Action* a = find_action(chain.steps[i]);
+        if (!a) { active_chain = false; return; }
+        if (!a->only_if_cmd.empty()) {
+            awaiting_gate = true;
+            parser.feed("\033[90m? " + a->only_if_cmd + "\033[0m\n");
+            Action gate;                 // run the gate in the action's context
+            gate.cmd = a->only_if_cmd;
+            gate.cwd = a->cwd;
+            gate.env = a->env;
+            step_in_flight = true;
+            follow = true;
+            runner.start(gate);
+        } else {
+            run_command(*a);
+        }
+    };
+
+    // Advance to the next step, or finish the chain.
+    std::function<void()> advance_chain = [&]() {
+        if (chain_idx >= chain.steps.size()) { active_chain = false; return; }
+        begin_step(chain_idx);
+    };
+
+    // Called once per child completion while a chain is active.
+    auto on_child_finished = [&]() {
+        RunState st = runner.state();
+        int code = runner.exit_code();
+        const Action* a = find_action(chain.steps[chain_idx]);
+        std::string name = a ? a->label : chain.steps[chain_idx];
+
+        if (st == RunState::Killed) {                 // Ctrl+C aborts the chain
+            parser.feed("\033[1;31m✕ chain aborted\033[0m\n");
+            active_chain = false;
+            return;
+        }
+        bool ok = (st == RunState::Exited && code == 0);
+
+        if (awaiting_gate) {
+            awaiting_gate = false;
+            if (ok) {
+                run_command(*a);                      // gate passed: run the command
+            } else {
+                parser.feed("\033[90m⊘ skipped: " + name + "\033[0m\n");
+                ++chain_idx;
+                advance_chain();
+            }
+        } else if (ok) {
+            ++chain_idx;
+            // A single-command run already shows its exit status in the status
+            // bar; only banner the completion of a real (multi-step) chain.
+            if (chain_idx >= chain.steps.size() && chain.steps.size() > 1)
+                parser.feed("\033[32m✓ done\033[0m\n");
+            advance_chain();
+        } else {
+            parser.feed("\033[1;31m✗ " + name + " failed (exit " +
+                        std::to_string(code) + ") — chain stopped\033[0m\n");
+            active_chain = false;
+        }
+    };
+
+    // Launch the chain for a freshly triggered target label.
+    auto start_chain = [&](const std::string& target) {
+        Plan p = resolve_plan(actions_, target);
+        parser.clear();
+        follow = true;
+        if (!p.errors.empty()) {
+            for (const auto& err : p.errors)
+                parser.feed("\033[1;31mrunner: " + err + "\033[0m\n");
+            return;
+        }
+        if (p.steps.empty()) { parser.feed("(nothing to run)\n"); return; }
+        chain = std::move(p);
+        chain_idx = 0;
+        active_chain = true;
+        advance_chain();
+    };
+
+    // Render (but do not run) the resolved plan for `target` into the pane.
+    auto dry_run = [&](const std::string& target) {
+        Plan p = resolve_plan(actions_, target);
+        parser.clear();
+        follow = true;
+        parser.feed("\033[36m# dry run: " + target + "\033[0m\n");
+        if (!p.errors.empty()) {
+            for (const auto& err : p.errors)
+                parser.feed("\033[1;31mrunner: " + err + "\033[0m\n");
+            return;
+        }
+        if (p.steps.empty()) { parser.feed("(nothing to run)\n"); return; }
+        int n = 1;
+        for (const auto& label : p.steps) {
+            const Action* a = find_action(label);
+            parser.feed(std::to_string(n++) + ". " + label + "\n");
+            if (!a) continue;
+            if (!a->only_if_cmd.empty())
+                parser.feed("\033[90m     only_if: " + a->only_if_cmd + "\033[0m\n");
+            if (!a->cwd.empty())
+                parser.feed("\033[90m     cwd: " + a->cwd + "\033[0m\n");
+            for (const auto& [k, v] : a->env)
+                parser.feed("\033[90m     env: " + k + "=" + v + "\033[0m\n");
+            parser.feed("     $ " + a->cmd + "\n");
+        }
+    };
 
     auto sidebar = Renderer([&] {
         Elements rows;
@@ -227,9 +364,12 @@ void App::run() {
     auto layout = ftxui::Container::Horizontal({sidebar, output});
 
     auto renderer = Renderer(layout, [&] {
-        std::string status =
-            state_label(runner.state(), runner.exit_code()) +
-            "   ↑↓ select · Enter run · Ctrl+C kill · Ctrl+D quit · y copy · Ctrl+Y copy all";
+        std::string status = state_label(runner.state(), runner.exit_code());
+        if (active_chain && !chain.steps.empty())
+            status += "  [" + std::to_string(chain_idx + 1) + "/" +
+                      std::to_string(chain.steps.size()) + "]";
+        status +=
+            "   ↑↓ select · Enter run · p preview · Ctrl+C kill · Ctrl+D quit · y copy · Ctrl+Y copy all";
         if (!copied_msg.empty()) status += "   [" + copied_msg + "]";
 
         std::string desc = model.ordered.empty() ? "" : model.ordered[selected].desc;
@@ -250,7 +390,16 @@ void App::run() {
     });
 
     auto with_keys = CatchEvent(renderer, [&](Event e) {
-        if (e == Event::Custom) return false;  // just triggers a redraw
+        if (e == Event::Custom) {
+            // A child's state changed. When one we launched has left Running,
+            // reap it exactly once and drive the chain forward.
+            if (active_chain && step_in_flight &&
+                runner.state() != RunState::Running) {
+                step_in_flight = false;
+                on_child_finished();
+            }
+            return false;  // otherwise just triggers a redraw
+        }
         copied_msg.clear();                    // any real event dismisses feedback
 
         // Copy the current mouse selection (drag to select first).
@@ -286,13 +435,15 @@ void App::run() {
             return true;
         }
         if (e == Event::Return) {
-            if (runner.state() != RunState::Running && !model.ordered.empty()) {
-                const Action& a = model.ordered[selected];
-                parser.clear();
-                parser.feed("$ " + a.cmd + "\n");
-                follow = true;
-                runner.start(a);
-            }
+            if (runner.state() != RunState::Running && !model.ordered.empty())
+                start_chain(model.ordered[selected].label);
+            return true;
+        }
+        // Preview the resolved plan (deps + composite members + gates) without
+        // running anything.
+        if (e == Event::Character('p')) {
+            if (runner.state() != RunState::Running && !model.ordered.empty())
+                dry_run(model.ordered[selected].label);
             return true;
         }
         if (e == ctrl_c) { runner.kill(); return true; }

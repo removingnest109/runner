@@ -6,7 +6,8 @@ in a child shell while streaming its output — including 256-color and truecolo
 ANSI — into a scrolling pane.
 
 Features: per-project action lists with groups, `${VAR}` expansion and per-action
-environment injection, upward config search, a `--generate-config` starter, and
+environment injection, action chaining (dependencies, composite sequences, and
+conditional skips), upward config search, a `--generate-config` starter, and
 mouse selection / clipboard copy of the output pane.
 
 ## Install
@@ -124,16 +125,45 @@ runner --help
 | Key | Action |
 |-----|--------|
 | `↑`/`↓` or `k`/`j` | Select action |
-| `Enter` | Run the selected action |
+| `Enter` | Run the selected action (and its resolved chain) |
+| `p` | Preview the selected action's plan without running it |
 | `PgUp`/`PgDn`, `End`, mouse wheel | Scroll the output pane |
 | drag with the mouse | Select output text |
 | `y` | Copy the current selection to the clipboard |
 | `Ctrl+Y` | Copy the full output of the last command |
-| `Ctrl+C` | Kill the running child |
+| `Ctrl+C` | Kill the running child (aborts the chain) |
 | `Ctrl+D` | Quit |
 
 Copy uses OSC 52 (works over SSH/tmux; honored by e.g. alacritty) and, when
 available, an external clipboard tool (`wl-copy`, `xclip`/`xsel`, or `pbcopy`).
+
+### Chaining
+
+Actions are addressed by their (unique) `label` and can pull in other actions:
+
+```toml
+[[action]]
+label = "Build"
+cmd   = "cmake --build build"
+
+[[action]]
+label = "Test"
+cmd   = "ctest --test-dir build"
+depends_on = ["Build"]              # runs Build first
+only_if_cmd = "! git diff --quiet"  # ...but skips Test when nothing changed
+
+[[action]]
+label = "Check"
+sequence = ["Build", "Test"]        # composite: runs each in order
+```
+
+Triggering an action resolves a **chain**: its `depends_on` (recursively) and,
+for a composite, its `sequence` members, deduplicated into one ordered run. A
+shared dependency runs once per chain, and the chain stops on the first command
+that exits non-zero. `only_if_cmd` runs before an action in that action's
+`cwd`/`env`; a zero exit runs it, non-zero skips it. Duplicate labels, unknown
+references, and dependency cycles are load errors. Press `p` to preview the
+resolved plan before running it.
 
 See `man 1 runner` for the full `runner.toml` schema.
 

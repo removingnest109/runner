@@ -116,3 +116,143 @@ env = { PORT = 8080 }
 )");
     CHECK_FALSE(r.errors.empty());
 }
+
+TEST_CASE("parse_config reads depends_on into Action.depends_on") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Build"
+cmd = "make"
+[[action]]
+label = "Test"
+cmd = "ctest"
+depends_on = ["Build"]
+)");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions.size() == 2);
+    REQUIRE(r.actions[1].depends_on.size() == 1);
+    CHECK(r.actions[1].depends_on[0] == "Build");
+}
+
+TEST_CASE("parse_config reads a composite (sequence, no cmd)") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Fmt"
+cmd = "fmt"
+[[action]]
+label = "Lint"
+cmd = "lint"
+[[action]]
+label = "Checks"
+sequence = ["Fmt", "Lint"]
+)");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions.size() == 3);
+    CHECK(r.actions[2].cmd.empty());
+    CHECK(r.actions[2].is_composite());
+    REQUIRE(r.actions[2].sequence.size() == 2);
+    CHECK(r.actions[2].sequence[0] == "Fmt");
+    CHECK(r.actions[2].sequence[1] == "Lint");
+}
+
+TEST_CASE("parse_config reads only_if_cmd") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Lint"
+cmd = "lint"
+only_if_cmd = "! git diff --quiet -- src/"
+)");
+    REQUIRE(r.errors.empty());
+    REQUIRE(r.actions.size() == 1);
+    CHECK(r.actions[0].only_if_cmd == "! git diff --quiet -- src/");
+}
+
+TEST_CASE("parse_config rejects both cmd and sequence on one action") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Both"
+cmd = "make"
+sequence = ["X"]
+)");
+    CHECK_FALSE(r.errors.empty());
+}
+
+TEST_CASE("parse_config rejects an action with neither cmd nor sequence") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Empty"
+desc = "no cmd, no sequence"
+)");
+    CHECK_FALSE(r.errors.empty());
+    CHECK(r.actions.empty());
+}
+
+TEST_CASE("parse_config reports a non-string depends_on entry") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "A"
+cmd = "a"
+depends_on = [42]
+)");
+    CHECK_FALSE(r.errors.empty());
+}
+
+TEST_CASE("parse_config rejects duplicate labels") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Build"
+cmd = "make"
+[[action]]
+label = "Build"
+cmd = "make again"
+)");
+    CHECK_FALSE(r.errors.empty());
+}
+
+TEST_CASE("parse_config rejects an unknown depends_on reference") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Test"
+cmd = "ctest"
+depends_on = ["Nope"]
+)");
+    CHECK_FALSE(r.errors.empty());
+}
+
+TEST_CASE("parse_config rejects only_if_cmd on a composite") {
+    // A composite expands to its members, so it owns no command to gate; a gate
+    // here would be silently dropped. Reject it at load instead.
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "X"
+cmd = "x"
+[[action]]
+label = "Checks"
+sequence = ["X"]
+only_if_cmd = "true"
+)");
+    CHECK_FALSE(r.errors.empty());
+}
+
+TEST_CASE("parse_config allows only_if_cmd on a command action") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "Lint"
+cmd = "lint"
+only_if_cmd = "true"
+)");
+    CHECK(r.errors.empty());
+}
+
+TEST_CASE("parse_config rejects a dependency cycle") {
+    ParseResult r = parse_config(R"(
+[[action]]
+label = "A"
+cmd = "a"
+depends_on = ["B"]
+[[action]]
+label = "B"
+cmd = "b"
+depends_on = ["A"]
+)");
+    CHECK_FALSE(r.errors.empty());
+}

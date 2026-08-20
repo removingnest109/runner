@@ -16,6 +16,15 @@ cmd   = "cmake -S . -B build"
 desc  = "Re-run CMake configure"
 group = "Dev"
 
+# Composite: `sequence` runs the listed actions in order (stopping on the first
+# failure). Actions are referenced by their unique `label`. See also the
+# per-action `depends_on = [...]` and `only_if_cmd = "..."` fields.
+[[action]]
+label = "Check (build + test)"
+sequence = ["Build", "Test"]
+desc  = "Build, then run the test suite; stops if the build fails"
+group = "Dev"
+
 # --- Release ---------------------------------------------------------------
 # Phase A bumps the version everywhere, commits, and creates a LOCAL tag. Push
 # the tag yourself (git push origin vX.Y.Z), then run the checksum refresh.

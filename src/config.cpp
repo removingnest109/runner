@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "plan.hpp"
 #include <toml++/toml.hpp>
 #include <cstdlib>
 #include <string>
@@ -33,12 +34,47 @@ ParseResult parse_config(const std::string& toml_content) {
         bool complete = true;
         if (auto v = (*t)["label"].value<std::string>()) a.label = *v;
         else { r.errors.push_back("action #" + std::to_string(idx) + ": missing 'label'"); complete = false; }
-        if (auto v = (*t)["cmd"].value<std::string>()) a.cmd = *v;
-        else { r.errors.push_back("action #" + std::to_string(idx) + ": missing 'cmd'"); complete = false; }
+
+        bool has_cmd = false;
+        if (auto v = (*t)["cmd"].value<std::string>()) { a.cmd = *v; has_cmd = true; }
+
+        bool has_seq = false;
+        if (auto seq = (*t)["sequence"].as_array()) {
+            has_seq = true;
+            for (auto& n : *seq) {
+                if (auto s = n.value<std::string>()) a.sequence.push_back(*s);
+                else { r.errors.push_back("action #" + std::to_string(idx) +
+                       ": 'sequence' entries must be strings"); complete = false; }
+            }
+        }
+
+        // A command action has 'cmd'; a composite has 'sequence'. Exactly one.
+        if (has_cmd && has_seq) {
+            r.errors.push_back("action #" + std::to_string(idx) +
+                               ": 'cmd' and 'sequence' are mutually exclusive");
+            complete = false;
+        } else if (!has_cmd && !has_seq) {
+            r.errors.push_back("action #" + std::to_string(idx) +
+                               ": missing 'cmd' or 'sequence'");
+            complete = false;
+        }
+
         if (!complete) continue;   // errors recorded; don't push an incomplete action
         a.desc  = (*t)["desc"].value_or(std::string{});
         a.cwd   = (*t)["cwd"].value_or(std::string{});
         a.group = (*t)["group"].value_or(std::string{});
+        a.only_if_cmd = (*t)["only_if_cmd"].value_or(std::string{});
+        if (a.is_composite() && !a.only_if_cmd.empty())
+            r.errors.push_back("action '" + a.label +
+                "': 'only_if_cmd' is not allowed on a composite (it owns no command "
+                "to gate); put the gate on the member actions instead");
+        if (auto deps = (*t)["depends_on"].as_array()) {
+            for (auto& n : *deps) {
+                if (auto s = n.value<std::string>()) a.depends_on.push_back(*s);
+                else r.errors.push_back("action '" + a.label +
+                     "': depends_on entries must be strings");
+            }
+        }
         if (auto envtbl = (*t)["env"].as_table()) {
             for (auto&& [k, v] : *envtbl) {
                 if (auto s = v.value<std::string>()) {
@@ -50,6 +86,14 @@ ParseResult parse_config(const std::string& toml_content) {
             }
         }
         r.actions.push_back(std::move(a));
+    }
+
+    // Cross-action validation (unique labels, resolvable references, no cycles).
+    // Only run when parsing was otherwise clean: a dropped/incomplete action
+    // would otherwise produce spurious "unknown reference" noise.
+    if (r.errors.empty()) {
+        auto graph_errors = validate_graph(r.actions);
+        r.errors.insert(r.errors.end(), graph_errors.begin(), graph_errors.end());
     }
     return r;
 }

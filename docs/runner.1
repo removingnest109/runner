@@ -1,4 +1,4 @@
-.TH RUNNER 1 "2026-08-18" "runner 0.1.0" "User Commands"
+.TH RUNNER 1 "2026-08-20" "runner 0.1.1" "User Commands"
 .SH NAME
 runner \- TUI project script runner
 .SH SYNOPSIS
@@ -16,15 +16,22 @@ With no options,
 .B runner
 searches upward from the current directory for
 .B runner.toml
-and opens the interactive UI. Exactly one action runs at a time; an action's
-working directory is resolved relative to the config file.
+and opens the interactive UI. One child process runs at a time; an action's
+working directory is resolved relative to the config file. A triggered action
+may pull in prerequisites and expand composite sequences, which run one after
+another as a single chain (see
+.BR CONFIGURATION ).
 .SH KEYS
 .TP
 .BR \(ua / \(da ", " k / j
 Select the previous/next action.
 .TP
 .B Enter
-Run the selected action.
+Run the selected action (and its resolved chain).
+.TP
+.B p
+Preview the selected action's resolved plan \(em its dependencies, composite
+members, and gate commands \(em in the output pane without running anything.
 .TP
 .BR PgUp / PgDn ", " End ", mouse wheel"
 Scroll the output pane.
@@ -39,7 +46,7 @@ Copy the current selection to the clipboard.
 Copy the full output of the last command to the clipboard.
 .TP
 .B Ctrl+C
-Kill the running child process.
+Kill the running child process; during a chain this aborts the whole chain.
 .TP
 .B Ctrl+D
 Quit.
@@ -72,7 +79,9 @@ supports:
 Short name shown in the list (required).
 .TP
 .B cmd
-Command run via \fB/bin/sh -c\fR (required).
+Command run via \fB/bin/sh -c\fR (required unless
+.B sequence
+is set).
 .TP
 .B desc
 One-line description (optional).
@@ -85,6 +94,37 @@ Working directory, resolved relative to the config file (optional).
 .TP
 .B env
 Table of environment variables set for the action's child process (optional).
+.TP
+.B depends_on
+Array of action labels run \(em deduplicated, in order \(em before this action
+(optional).
+.TP
+.B sequence
+Array of action labels making this a
+.IR composite :
+triggering it runs the listed actions in order. Mutually exclusive with
+.BR cmd .
+.TP
+.B only_if_cmd
+Gate command run via \fB/bin/sh -c\fR in the action's
+.B cwd
+and
+.B env
+before the action; a zero exit runs the action, a non-zero exit skips it
+(optional). Not allowed on a composite.
+.PP
+Actions are addressed by their
+.B label
+in
+.B depends_on
+and
+.BR sequence ,
+so labels must be unique. Triggering an action resolves a
+.IR chain :
+its dependencies (recursively) and, for a composite, its members, deduplicated
+into a single ordered run. A shared dependency runs once per chain; the chain
+stops on the first command that exits non-zero. Unknown references and
+dependency cycles are load errors.
 .PP
 The string fields
 .B cwd
