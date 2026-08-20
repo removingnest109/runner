@@ -85,6 +85,13 @@ sed -i "s/^VERSION=$cur_re\$/VERSION=$new/" packaging/debian/build.sh
 # Homebrew formula: the url carries a literal tag, so rewrite it.
 sed -i "s|v$cur_re\.tar\.gz|v$new.tar.gz|" packaging/homebrew/runner.rb
 
+# Man page .TH line: version token + revision date. Matched generically (not
+# against $cur) so it self-heals even if the page ever drifts from the code
+# version. The date reflects when the manual was last revised (this release).
+today=$(date +%Y-%m-%d)
+sed -i "s/\"runner [0-9][0-9.]*\"/\"runner $new\"/; \
+        s/^\(\.TH RUNNER 1 \)\"[0-9-]*\"/\1\"$today\"/" docs/runner.1
+
 # --- prepend a new debian/changelog stanza ---------------------------------
 name=$(git config user.name || true)
 email=$(git config user.email || true)
@@ -108,7 +115,8 @@ git add CMakeLists.txt \
   packaging/nix/package.nix \
   packaging/void/template \
   packaging/debian/build.sh packaging/debian/changelog \
-  packaging/homebrew/runner.rb
+  packaging/homebrew/runner.rb \
+  docs/runner.1
 git commit -m "release: v$new"
 git tag -a "v$new" -m "v$new"
 
